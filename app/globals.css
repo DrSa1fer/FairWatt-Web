@@ -1,0 +1,113 @@
+:root {
+  --main-gradient: linear-gradient(90deg, #4CC7F4 0%, #44BDF4 17%, #31A4F4 45%, #127BF5 81%, #0063F6 99%);
+}
+
+html,
+body {
+  background: var(--main-gradient);
+  background-attachment: fixed; /* Это важно для градиентного background! */
+  max-width: 100vw;
+  overflow-x: hidden !important;
+  padding-right: 0% !important;
+  width: 100% !important;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+/* Глобальные стили для стрелок карусели */
+.ant-carousel .slick-prev,
+.ant-carousel .slick-next {
+    font-size: 24px;
+    color: #03030388;
+    z-index: 1;
+}
+
+.ant-carousel .slick-prev:hover,
+.ant-carousel .slick-next:hover {
+    color: #1890ff;
+}
+
+.ant-carousel .slick-prev {
+    left: -35px;
+}
+
+.ant-carousel .slick-next {
+    right: -35px;
+}
+
+.ant-carousel .slick-prev::before,
+.ant-carousel .slick-next::before {
+    display: none;
+}
+
+/* Глобальные стили для ссылок */
+/* Базовые стили для всех ссылок */
+a, .link {
+  color: #F8F9FA;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  padding: 2px 4px;
+  border-radius: 3px;
+  position: relative;
+}
+
+a:hover, .link:hover {
+  opacity: 0.9;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+a:active, .link:active,
+a.active, .link.active {
+  color: #E6F7FF;
+  text-decoration: underline;
+}
+
+
+a:focus-visible, .link:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+.light-bg a, .light-bg .link {
+  color: #127BF5;
+}
+.light-bg a:hover, .light-bg .link:hover {
+  color: #0063F6;
+}
+
+/* Для тёмной темы (если ссылка на тёмном фоне) */
+/* @media (prefers-color-scheme: dark) {
+  a, .link {
+    color: #1890ff;
+  }
+  a:hover, .link:hover {
+    color: #40a9ff;
+  }
+} */
+
+/*Ссылки в таблице*/
+.tableLink {
+  color: #127BF5 !important;
+  text-decoration: none !important;
+  transition: all 0.3s ease !important;
+  padding: 2px 4px !important;
+  border-radius: 3px !important;
+  position: relative !important;
+}
+
+.tableLink:hover {
+  color: #0063F6 !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+}
