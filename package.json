@@ -16,6 +16,7 @@
     "next": "15.1.7",
     "plotly.js": "^3.0.1",
     "react-plotly.js": "^2.6.0",
+    "react-yandex-maps": "^4.6.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
