@@ -1,5 +1,5 @@
 const axios = require('axios');
-const API_KEY = 'e11435b1-e889-4652-9c53-6669d6fea872';
+
 
 async function geocodeAddresses(addresses : any) {
   const results = [];
@@ -8,7 +8,7 @@ async function geocodeAddresses(addresses : any) {
     try {
       const response = await axios.get('https://geocode-maps.yandex.ru/v1/', {
         params: {
-          apikey: API_KEY,
+          apikey: process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY,
           geocode: address,
           format: 'json'
         }

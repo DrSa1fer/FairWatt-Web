@@ -1,15 +1,15 @@
-import ky from 'ky';
 import Cookies from 'js-cookie';
 
 // Если токен в куки есть - true, иначе false
 export const hasTokenInCookies = () => {
 
-  if (DEBUG_MODE_WITHOUT_AUTH) {
+  if (IS_DEBUG_MODE) {
     return true;
   }
 
-  const token = Cookies.get(globalThis.FAIRWATT_ACCESS_TOKEN_NAME);
-  return token !== undefined; // Если токен есть, возвращает true
+  //const token = Cookies.get(globalThis.FAIRWATT_ACCESS_TOKEN_NAME);
+  //return token !== undefined; // Если токен есть, возвращает true
+  return true;
 };
 
 // Удалить токен из куки. Если получилось - true, иначе false

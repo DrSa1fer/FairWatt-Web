@@ -8,8 +8,6 @@ import '@ant-design/v5-patch-for-react-19';
 import { useRouter } from "next/navigation";
 import dynamic from 'next/dynamic';
 
-const IS_DEBUG_MODE = process.env.NEXT_PUBLIC_DEBUG_MODE === 'true';
-
 // Динамическая загрузка с отключением SSR
 const MapRoute = dynamic(() => import('../components/mapRoute'), {
     ssr: false,
@@ -70,6 +68,15 @@ export const MeterTable = ({
     const [employeesLoading, setEmployeesLoading] = useState(false);
     const tableRef = useRef<HTMLDivElement>(null);
 
+    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+    const [selectedProfileData, setSelectedProfileData] = useState<{
+        clientData?: ClientData;
+        meterDetails?: MeterDetails;
+        address?: string;
+        rating?: number;
+        verifiedStatus?: string | null;
+    }>({});
+
     // Загрузка API Яндекс.Карт и сотрудников
     useEffect(() => {
         const loadData = async () => {
@@ -78,7 +85,7 @@ export const MeterTable = ({
                 setApiReady(true);
             } else if (!document.querySelector('script[src*="api-maps.yandex.ru"]')) {
                 const script = document.createElement('script');
-                script.src = `https://api-maps.yandex.ru/2.1/?` + process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY + `&lang=ru_RU&load=package.full`;
+                script.src = `https://api-maps.yandex.ru/2.1/?apikey=` + process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY + `&lang=ru_RU&load=package.full`;
                 script.onload = () => {
                     window.ymaps.ready(() => {
                         window._ymapsLoaded = true;
@@ -261,44 +268,85 @@ export const MeterTable = ({
 
     const expandedRowRender = (record: Meter) => {
         return (
-            <Card 
-                bordered={false} 
-                style={{ background: '#fafafa', borderRadius: 8 }}
-                bodyStyle={{ padding: '16px 24px' }}
+            <Card
+                variant='borderless'
+                style={{
+                    background: '#fafafa',
+                    borderRadius: 8,
+                    width: '60%', // Ширина по содержимому
+                    marginLeft: 'auto',
+                    marginRight: 'auto'
+                }}
+                styles={{
+                    body: { padding: '16px 24px' }
+                }}
             >
-                <Descriptions 
-                    column={{ xs: 1, sm: 2, md: 3 }}
-                    size="small"
-                    bordered
-                >
-                    <Descriptions.Item label={<><HomeOutlined /> Площадь</>}>
-                        {record.meter_details?.square || '-'} м²
-                    </Descriptions.Item>
-                    <Descriptions.Item label={<><HomeOutlined /> Тип помещения</>}>
-                        {record.meter_details?.facility_type_name || '-'}
-                    </Descriptions.Item>
-                    <Descriptions.Item label={<><UserOutlined /> Жильцы</>}>
-                        {record.meter_details?.residents_count || '-'}
-                    </Descriptions.Item>
-                    <Descriptions.Item label={<><HomeOutlined /> Комнаты</>}>
-                        {record.meter_details?.rooms_count || '-'}
-                    </Descriptions.Item>
-                    <Descriptions.Item label={<><PhoneOutlined /> Телефон</>} span={2}>
-                        {record.client?.phone ? (
-                            <a href={`tel:${record.client.phone}`}>{record.client.phone}</a>
-                        ) : '-'}
-                    </Descriptions.Item>
-                    <Descriptions.Item label={<><MailOutlined /> Email</>} span={3}>
-                        {record.client?.email ? (
-                            <a href={`mailto:${record.client.email}`}>{record.client.email}</a>
-                        ) : '-'}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Статус проверки">
+                <div style={{ display: 'flex', gap: 16 }}>
+                    {/* Жилищные данные - левая карточка */}
+                    <Card
+                        title="Жилищные данные"
+                        size="small"
+                        variant='borderless'
+                        style={{ flex: 1 }}
+                    >
+                        <List
+                            size="small"
+                            dataSource={[
+                                { label: "Площадь", value: record.meter_details?.square || '-' },
+                                { label: "Тип помещения", value: record.meter_details?.facility_type_name || '-' },
+                                { label: "Количество жильцов", value: record.meter_details?.residents_count || '-' },
+                                { label: "Количество комнат", value: record.meter_details?.rooms_count || '-' },
+                            ]}
+                            renderItem={item => (
+                                <List.Item>
+                                    <Text strong>{item.label}: </Text>
+                                    <Text>{item.value} {item.label === "Площадь" ? 'м²' : ''}</Text>
+                                </List.Item>
+                            )}
+                        />
+                    </Card>
+
+                    {/* Контактные данные - правая карточка */}
+                    <Card
+                        title="Контактные данные"
+                        size="small"
+                        variant='borderless'
+                        style={{ flex: 1 }}
+                    >
+                        <List
+                            size="small"
+                            dataSource={[
+                                {
+                                    label: "Телефон",
+                                    value: record.client?.phone ? (
+                                        <a href={`tel:${record.client.phone}`}>{record.client.phone}</a>
+                                    ) : '-'
+                                },
+                                {
+                                    label: "Email",
+                                    value: record.client?.email ? (
+                                        <a href={`mailto:${record.client.email}`}>{record.client.email}</a>
+                                    ) : '-'
+                                },
+                            ]}
+                            renderItem={item => (
+                                <List.Item>
+                                    <Text strong>{item.label}: </Text>
+                                    <Text>{item.value}</Text>
+                                </List.Item>
+                            )}
+                        />
+                    </Card>
+                </div>
+
+                {/* Статус проверки - под двумя карточками */}
+                <div style={{ marginTop: 16 }}>
+                    <Card title="Статус" size="small" variant='borderless'>
                         <Tag color={record.verified_status ? 'green' : 'orange'}>
-                            {record.verified_status || 'Не проверено'}
+                            {record.verified_status || 'Проверок не было'}
                         </Tag>
-                    </Descriptions.Item>
-                </Descriptions>
+                    </Card>
+                </div>
             </Card>
         );
     };
@@ -361,15 +409,15 @@ export const MeterTable = ({
             sortOrder: sortedInfo.columnKey === 'name' ? sortedInfo.order : null,
             render: (_: any, record: Meter) => (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <Text 
+                    <Text
                         onClick={() => router.push(`/profile?meterId=${record.meter_id}`)}
-                        strong 
+                        strong
                         style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                     >
                         {record.client?.name}
                     </Text>
-                    <Text 
-                        type="secondary" 
+                    <Text
+                        type="secondary"
                         style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                     >
                         {record.address}
@@ -391,7 +439,19 @@ export const MeterTable = ({
                     </Button>
                     <Button
                         icon={<UserOutlined />}
-                        onClick={() => router.push(`/profile?meterId=${record.meter_id}`)}
+                        onClick={() => {
+                            if (IS_DEBUG_MODE) {
+                                // В режиме отладки сохраняем данные в localStorage
+                                localStorage.setItem(`meterProfile_${record.meter_id}`, JSON.stringify({
+                                    client: record.client,
+                                    meter_details: record.meter_details,
+                                    address: record.address,
+                                    rating: record.rating,
+                                    verified_status: record.verified_status
+                                }));
+                            }
+                            router.push(`/profile?meterId=${record.meter_id}`);
+                        }}
                     >
                         Профиль
                     </Button>
@@ -468,7 +528,7 @@ export const MeterTable = ({
                             onChange={(e) => setSearchName(e.target.value)}
                             onPressEnter={applyFilters}
                             suffix={<SearchOutlined />}
-                            style={{ width: 250 }}
+                            style={{ width: 350 }}
                         />
                         <Input
                             placeholder="Поиск по адресу"
@@ -476,7 +536,7 @@ export const MeterTable = ({
                             onChange={(e) => setSearchAddress(e.target.value)}
                             onPressEnter={applyFilters}
                             suffix={<SearchOutlined />}
-                            style={{ width: 250 }}
+                            style={{ width: 350 }}
                         />
                         <Input
                             placeholder="Поиск по телефону"
@@ -484,7 +544,7 @@ export const MeterTable = ({
                             onChange={(e) => setSearchPhone(e.target.value)}
                             onPressEnter={applyFilters}
                             suffix={<PhoneOutlined />}
-                            style={{ width: 250 }}
+                            style={{ width: 350 }}
                         />
                     </Flex>
 
@@ -673,6 +733,12 @@ export const MeterTable = ({
                     </Card>
                 </Space>
             </Modal>
+
+            {/* <ProfileModal
+                open={isProfileModalOpen}
+                onCancel={() => setIsProfileModalOpen(false)}
+                {...selectedProfileData}
+            /> */}
         </Layout>
     );
 };

@@ -17,7 +17,21 @@ interface Meter {
     }
     consumption?: Consumption[], // Показатели счетчиков
     is_first?: boolean | null, // Первая ли точка в маршруте
-    verified_status?: string | null // Статус проверки (если проверка была)
+    verified_status?: string | null, // Статус проверки (если проверка была)
+    note?: string // Заметка
+}
+
+interface ClientData {
+    name?: string;
+    phone?: string;
+    email?: string;
+}
+
+interface MeterDetails {
+    square?: number;
+    residents_count?: number;
+    rooms_count?: number;
+    facility_type_name?: string;
 }
 
 // Клиент

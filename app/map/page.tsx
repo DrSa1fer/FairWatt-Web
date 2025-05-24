@@ -88,7 +88,7 @@ const MapPage = () => {
 
     if (!window._ymapsLoaded && !document.querySelector('script[src*="api-maps.yandex.ru"]')) {
       const script = document.createElement('script');
-      script.src = `https://api-maps.yandex.ru/2.1/?` + process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY + `&lang=ru_RU&load=package.full`;
+      script.src = `https://api-maps.yandex.ru/2.1/?apikey=` + process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY + `&lang=ru_RU&load=package.full`;
       script.onload = () => {
         window.ymaps.ready(() => {
           window._ymapsLoaded = true;
