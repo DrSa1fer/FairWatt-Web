@@ -1,6 +1,6 @@
 "use client";
 
-import { Layout, Typography } from "antd";
+import { Button, Layout, Typography } from "antd";
 import '@ant-design/v5-patch-for-react-19';
 import { withAuth } from "../hocs/withAuth";
 import { MeterTable } from "../components/meterTable";
@@ -8,179 +8,160 @@ import { MeterTable } from "../components/meterTable";
 const { Title } = Typography;
 
 function MeterListPage() {
-    const testData: Meter[] = [
+    const testData = [
         {
-            id: 1,
+            meter_id: 1,
+            facility_id: 101,
             name: 'Фомин Сергей Александрович',
             rating: 78,
             address: 'Краснодар, ул. Павлова, д. 14',
-            lastConsumption: 2405,
-            tariffName: 'Льготный',
-            tariffPrice: 100,
-            region: 'Краснодарский край',
-            meterDetails: {
+            meter_details: {
                 square: 74,
-                hasElectricHeating: true,
-                hasElectricStove: false,
-                facilityName: 'Частный дом',
-                settlementName: 'Город'
-            }
+                facility_type_name: 'Частный дом',
+                residents_count: 3,
+                rooms_count: 4
+            },
+            geodata: {
+                latitude: 45.0355,
+                longitude: 38.9753
+            },
+            is_first: null,
+            verified_status: null
         },
         {
-            id: 2,
+            meter_id: 2,
+            facility_id: 102,
             name: 'Петров Павел Андреевич',
             rating: 54,
             address: 'Краснодар, ул. Севастопольская, д. 3, кв. 14',
-            lastConsumption: 8432,
-            tariffName: 'Льготный',
-            tariffPrice: 100,
-            region: 'Краснодарский край',
-            meterDetails: {
+            meter_details: {
                 square: 46,
-                hasElectricHeating: true,
-                hasElectricStove: true,
-                facilityName: 'Квартира',
-                settlementName: 'Город'
-            }
+                facility_type_name: 'Квартира',
+                residents_count: 2,
+                rooms_count: 2
+            },
+            geodata: {
+                latitude: 45.0402,
+                longitude: 38.9761
+            },
+            is_first: null,
+            verified_status: null
         },
         {
-            id: 3,
-            name: 'Сибурин Владимир Антонович',
+            meter_id: 3,
+            facility_id: 103,
+            name: 'Сидорова Анна Владимировна',
             rating: 84,
-            address: 'Шахты, ул. Шелковая, д. 7',
-            lastConsumption: 1255,
-            tariffName: 'Единый',
-            tariffPrice: 150,
-            region: 'Ростовская область',
-            meterDetails: {
-                square: 74,
-                hasElectricHeating: false,
-                hasElectricStove: false,
-                facilityName: 'Частный дом',
-                settlementName: 'Село'
-            }
-        },
-        {
-            id: 4,
-            name: 'Иванова Анна Петровна',
-            rating: 32,
-            address: 'Москва, ул. Ленина, д. 25, кв. 7',
-            lastConsumption: 3654,
-            tariffName: 'Стандартный',
-            tariffPrice: 120,
-            region: 'Московская область',
-            meterDetails: {
-                square: 58,
-                hasElectricHeating: false,
-                hasElectricStove: true,
-                facilityName: 'Квартира',
-                settlementName: 'Город'
-            }
-        },
-        {
-            id: 5,
-            name: 'Смирнов Алексей Викторович',
-            rating: 65,
-            address: 'Сочи, ул. Морская, д. 12',
-            lastConsumption: 4789,
-            tariffName: 'Льготный',
-            tariffPrice: 100,
-            region: 'Краснодарский край',
-            meterDetails: {
-                square: 89,
-                hasElectricHeating: true,
-                hasElectricStove: false,
-                facilityName: 'Частный дом',
-                settlementName: 'Город'
-            }
-        },
-        {
-            id: 6,
-            name: 'Кузнецова Мария Ивановна',
-            rating: 45,
-            address: 'Ростов-на-Дону, ул. Пушкина, д. 18, кв. 3',
-            lastConsumption: 5236,
-            tariffName: 'Единый',
-            tariffPrice: 150,
-            region: 'Ростовская область',
-            meterDetails: {
-                square: 63,
-                hasElectricHeating: false,
-                hasElectricStove: true,
-                facilityName: 'Квартира',
-                settlementName: 'Город'
-            }
-        },
-        {
-            id: 7,
-            name: 'Васильев Дмитрий Сергеевич',
-            rating: 91,
-            address: 'Новосибирск, ул. Советская, д. 45',
-            lastConsumption: 1874,
-            tariffName: 'Стандартный',
-            tariffPrice: 120,
-            region: 'Новосибирская область',
-            meterDetails: {
+            address: 'ст. Ново-Титаровская, ул. Ленина, д. 25',
+            meter_details: {
                 square: 95,
-                hasElectricHeating: true,
-                hasElectricStove: true,
-                facilityName: 'Частный дом',
-                settlementName: 'Село'
-            }
+                facility_type_name: 'Частный дом',
+                residents_count: 5,
+                rooms_count: 5
+            },
+            geodata: {
+                latitude: 45.2345,
+                longitude: 38.9876
+            },
+            is_first: null,
+            verified_status: null
         },
         {
-            id: 8,
-            name: 'Попова Елена Александровна',
-            rating: 28,
-            address: 'Екатеринбург, ул. Мира, д. 33, кв. 9',
-            lastConsumption: 6542,
-            tariffName: 'Льготный',
-            tariffPrice: 100,
-            region: 'Свердловская область',
-            meterDetails: {
-                square: 50,
-                hasElectricHeating: false,
-                hasElectricStove: false,
-                facilityName: 'Квартира',
-                settlementName: 'Город'
-            }
+            meter_id: 4,
+            facility_id: 104,
+            name: 'Ковалев Дмитрий Игоревич',
+            rating: 62,
+            address: 'Архипо-Осиповка, ул. Центральная, д. 7',
+            meter_details: {
+                square: 68,
+                facility_type_name: 'Частный дом',
+                residents_count: 4,
+                rooms_count: 3
+            },
+            geodata: {
+                latitude: 44.3654,
+                longitude: 38.5367
+            },
+            is_first: null,
+            verified_status: null
         },
         {
-            id: 9,
-            name: 'Новиков Андрей Петрович',
+            meter_id: 5,
+            facility_id: 105,
+            name: 'Иванова Ольга Петровна',
+            rating: 45,
+            address: 'Краснодар, ул. Красная, д. 56, кв. 12',
+            meter_details: {
+                square: 52,
+                facility_type_name: 'Квартира',
+                residents_count: 2,
+                rooms_count: 1
+            },
+            geodata: {
+                latitude: 45.0347,
+                longitude: 38.9748
+            },
+            is_first: null,
+            verified_status: null
+        },
+        {
+            meter_id: 6,
+            facility_id: 106,
+            name: 'Смирнов Алексей Викторович',
+            rating: 91,
+            address: 'ст. Ново-Титаровская, ул. Садовая, д. 18',
+            meter_details: {
+                square: 110,
+                facility_type_name: 'Частный дом',
+                residents_count: 6,
+                rooms_count: 6
+            },
+            geodata: {
+                latitude: 45.2367,
+                longitude: 38.9865
+            },
+            is_first: null,
+            verified_status: null
+        },
+        {
+            meter_id: 7,
+            facility_id: 107,
+            name: 'Кузнецова Мария Ивановна',
+            rating: 37,
+            address: 'Архипо-Осиповка, ул. Морская, д. 3',
+            meter_details: {
+                square: 48,
+                facility_type_name: 'Квартира',
+                residents_count: 1,
+                rooms_count: 1
+            },
+            geodata: {
+                latitude: 44.3662,
+                longitude: 38.5378
+            },
+            is_first: null,
+            verified_status: null
+        },
+        {
+            meter_id: 8,
+            facility_id: 108,
+            name: 'Попов Владимир Сергеевич',
             rating: 73,
-            address: 'Казань, ул. Баумана, д. 56',
-            lastConsumption: 3987,
-            tariffName: 'Единый',
-            tariffPrice: 150,
-            region: 'Республика Татарстан',
-            meterDetails: {
-                square: 77,
-                hasElectricHeating: true,
-                hasElectricStove: false,
-                facilityName: 'Частный дом',
-                settlementName: 'Город'
-            }
-        },
-        {
-            id: 10,
-            name: 'Соколова Ольга Дмитриевна',
-            rating: 59,
-            address: 'Владивосток, ул. Океанская, д. 11, кв. 4',
-            lastConsumption: 4215,
-            tariffName: 'Стандартный',
-            tariffPrice: 120,
-            region: 'Приморский край',
-            meterDetails: {
-                square: 62,
-                hasElectricHeating: false,
-                hasElectricStove: true,
-                facilityName: 'Квартира',
-                settlementName: 'Город'
-            }
+            address: 'Краснодар, ул. Гагарина, д. 89, кв. 34',
+            meter_details: {
+                square: 65,
+                facility_type_name: 'Квартира',
+                residents_count: 3,
+                rooms_count: 2
+            },
+            geodata: {
+                latitude: 45.0361,
+                longitude: 38.9765
+            },
+            is_first: null,
+            verified_status: null
         }
     ];
-
 
     return (
         <Layout style={{ padding: 20, background: "transparent" }}>

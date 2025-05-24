@@ -1,25 +1,101 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Button, Flex, Input, Layout, Space, Table, Slider, Dropdown, Typography, Modal, message, Tag } from "antd";
-import { DownloadOutlined, DownOutlined, SearchOutlined, LineChartOutlined } from '@ant-design/icons';
+import { Button, Flex, Input, Layout, Space, Table, Slider, Dropdown, Typography, Modal, message, Tag, List, Card, Select } from "antd";
+import { DownloadOutlined, DownOutlined, SearchOutlined, LineChartOutlined, UserOutlined, CloseOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
 import '@ant-design/v5-patch-for-react-19';
 import { useRouter } from "next/navigation";
+import dynamic from 'next/dynamic';
+
+// Динамическая загрузка с отключением SSR
+const MapRoute = dynamic(() => import('../components/mapRoute'), {
+  ssr: false,
+  loading: () => <div style={{ 
+    display: 'flex', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    height: '100%',
+    flexDirection: 'column'
+  }}>
+    <h1>Загрузка карты...</h1>
+    <div style={{
+      width: '200px',
+      height: '4px',
+      backgroundColor: '#f0f0f0',
+      borderRadius: '2px',
+      marginTop: '20px',
+      overflow: 'hidden'
+    }}>
+      <div style={{
+        width: '100%',
+        height: '100%',
+        backgroundColor: '#4CAF50',
+        animation: 'loading 1.5s infinite ease-in-out',
+        transformOrigin: 'left center'
+      }}></div>
+    </div>
+  </div>
+});
 
 interface Props {
     meters: Meter[];
 }
 
+interface Employee {
+    id: number;
+    name: string;
+}
+
+interface Trip {
+    employee: Employee;
+    points: Meter[];
+}
+
 const { Text } = Typography;
+
+// Моковые данные сотрудников
+const employees: Employee[] = [
+    { id: 1, name: 'Иванов Алексей Петрович' },
+    { id: 2, name: 'Петрова Мария Сергеевна' },
+    { id: 3, name: 'Сидоров Дмитрий Иванович' },
+    { id: 4, name: 'Кузнецова Ольга Владимировна' },
+];
 
 export const MeterTable = ({ meters = [] }: Props) => {
     const router = useRouter();
     const [baseData] = useState<Meter[]>(meters);
     const [filteredData, setFilteredData] = useState<Meter[]>(meters);
+    const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+    const [isRouteModalVisible, setIsRouteModalVisible] = useState(false);
+    const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+    const [apiReady, setApiReady] = useState(false);
     const tableRef = useRef<HTMLDivElement>(null);
 
-    // Состояние для сортировки
+    // Загрузка API Яндекс.Карт
+    useEffect(() => {
+        if (window._ymapsLoaded) {
+            setApiReady(true);
+            return;
+        }
+
+        if (!window._ymapsLoaded && !document.querySelector('script[src*="api-maps.yandex.ru"]')) {
+            const script = document.createElement('script');
+            script.src = `https://api-maps.yandex.ru/2.1/?apikey=e11435b1-e889-4652-9c53-6669d6fea872&lang=ru_RU&load=package.full`;
+            script.onload = () => {
+                window.ymaps.ready(() => {
+                    window._ymapsLoaded = true;
+                    setApiReady(true);
+                });
+            };
+            document.head.appendChild(script);
+        }
+
+        return () => {
+            // Очистка при необходимости
+        };
+    }, []);
+
     const [sortedInfo, setSortedInfo] = useState<{
         columnKey?: string;
         order?: 'ascend' | 'descend';
@@ -28,118 +104,64 @@ export const MeterTable = ({ meters = [] }: Props) => {
         order: 'ascend'
     });
 
-    // Состояния для фильтров
-    const [searchId, setSearchId] = useState('');
     const [searchName, setSearchName] = useState('');
     const [searchAddress, setSearchAddress] = useState('');
-    const [searchRegion, setSearchRegion] = useState('');
     const [ratingRange, setRatingRange] = useState<[number, number]>([0, 100]);
-    const [consumptionRange, setConsumptionRange] = useState<[number, number]>([0, 10000]);
-    const [squareRange, setSquareRange] = useState<[number, number]>([0, 200]);
-    const [electricFilter, setElectricFilter] = useState<'all' | 'heating' | 'stove' | 'none'>('all');
 
-    // Вычисляем диапазоны значений
     useEffect(() => {
         if (baseData.length > 0) {
-            const ratings = baseData.map(m => m.rating);
-            const consumptions = baseData.map(m => m.lastConsumption || 0);
-            const squares = baseData.map(m => m.meterDetails?.square || 0);
-
+            const ratings = baseData.map(m => m.rating || 0);
             const minRating = Math.min(...ratings);
             const maxRating = Math.max(...ratings);
-            const minConsumption = Math.min(...consumptions);
-            const maxConsumption = Math.max(...consumptions);
-            const minSquare = Math.min(...squares);
-            const maxSquare = Math.max(...squares);
 
             setRatingRange([minRating, maxRating]);
-            setConsumptionRange([minConsumption, maxConsumption]);
-            setSquareRange([minSquare, maxSquare]);
-
-            // Применяем сортировку при первой загрузке данных
-            const sorted = [...baseData].sort((a, b) => a.rating - b.rating);
+            const sorted = [...baseData].sort((a, b) => (a.rating || 0) - (b.rating || 0));
             setFilteredData(sorted);
         }
     }, [baseData]);
 
-    useEffect(() => {
-        applyFilters();
-    }, [electricFilter]);
-
-    // Функция для определения цвета строки на основе рейтинга
-    const getRowColor = (rating: number) => {
-        if (rating < 20) return '#ff7875'; // красный
-        if (rating < 40) return '#ff9c6e'; // оранжевый
-        if (rating < 60) return '#ffc069'; // желтый
-        if (rating < 80) return '#91d5ff'; // синий
-        return '#b7eb8f'; // зеленый
+    const getRowColor = (rating: number = 0) => {
+        if (rating < 20) return '#ff7875';
+        if (rating < 40) return '#ff9c6e';
+        if (rating < 60) return '#ffc069';
+        if (rating < 80) return '#91d5ff';
+        return '#b7eb8f';
     };
 
-    // Применяем все фильтры
     const applyFilters = () => {
         let filtered = baseData.filter(meter => {
-            // Фильтр по ID
-            if (searchId && !meter.id.toString().includes(searchId)) {
+            if (searchName && !meter.name?.toLowerCase().includes(searchName.toLowerCase())) {
                 return false;
             }
 
-            // Фильтр по имени
-            if (searchName && !meter.name.toLowerCase().includes(searchName.toLowerCase())) {
+            if (searchAddress && meter.address && !meter.address.toLowerCase().includes(searchAddress.toLowerCase())) {
                 return false;
             }
 
-            // Фильтр по адресу
-            if (searchAddress && meter.address
-                    && !meter.address.toLowerCase().includes(searchAddress.toLowerCase())) {
+            if ((meter.rating || 0) < ratingRange[0] || (meter.rating || 0) > ratingRange[1]) {
                 return false;
-            }
-
-            // Фильтр по региону
-            if (searchRegion && meter.region
-                    && !meter.region.toLowerCase().includes(searchRegion.toLowerCase())) {
-                return false;
-            }
-
-            // Фильтр по рейтингу
-            if (meter.rating < ratingRange[0] || meter.rating > ratingRange[1]) {
-                return false;
-            }
-
-            // Фильтр по показаниям
-            if ((meter.lastConsumption || 0) < consumptionRange[0] || 
-                (meter.lastConsumption || 0) > consumptionRange[1]) {
-                return false;
-            }
-
-            // Фильтр по квадратуре
-            if (meter.meterDetails?.square && 
-                (meter.meterDetails.square < squareRange[0] || 
-                 meter.meterDetails.square > squareRange[1])) {
-                return false;
-            }
-
-            // Фильтр по электрооборудованию
-            if (electricFilter !== 'all') {
-                const hasHeating = meter.meterDetails?.hasElectricHeating || false;
-                const hasStove = meter.meterDetails?.hasElectricStove || false;
-                
-                if (electricFilter === 'heating' && !hasHeating) return false;
-                if (electricFilter === 'stove' && !hasStove) return false;
-                if (electricFilter === 'none' && (hasHeating || hasStove)) return false;
             }
 
             return true;
         });
 
-        // Применяем сортировку к отфильтрованным данным
         if (sortedInfo.columnKey && sortedInfo.order) {
             filtered = [...filtered].sort((a, b) => {
                 if (sortedInfo.columnKey === 'rating') {
                     return sortedInfo.order === 'ascend' 
-                        ? a.rating - b.rating 
-                        : b.rating - a.rating;
+                        ? (a.rating || 0) - (b.rating || 0)
+                        : (b.rating || 0) - (a.rating || 0);
                 }
-                // Добавьте другие условия сортировки для других колонок при необходимости
+                if (sortedInfo.columnKey === 'name') {
+                    return sortedInfo.order === 'ascend' 
+                        ? (a.name || '').localeCompare(b.name || '')
+                        : (b.name || '').localeCompare(a.name || '');
+                }
+                if (sortedInfo.columnKey === 'address') {
+                    return sortedInfo.order === 'ascend' 
+                        ? (a.address || '').localeCompare(b.address || '')
+                        : (b.address || '').localeCompare(a.address || '');
+                }
                 return 0;
             });
         }
@@ -147,130 +169,128 @@ export const MeterTable = ({ meters = [] }: Props) => {
         setFilteredData(filtered);
     };
 
-    // Сброс всех фильтров
     const resetFilters = () => {
-        setSearchId('');
         setSearchName('');
         setSearchAddress('');
-        setSearchRegion('');
         if (baseData.length > 0) {
-            const ratings = baseData.map(m => m.rating);
-            const consumptions = baseData.map(m => m.lastConsumption || 0);
-            const squares = baseData.map(m => m.meterDetails?.square || 0);
-            
-            setRatingRange([
-                Math.min(...ratings),
-                Math.max(...ratings)
-            ]);
-            setConsumptionRange([
-                Math.min(...consumptions),
-                Math.max(...consumptions)
-            ]);
-            setSquareRange([
-                Math.min(...squares),
-                Math.max(...squares)
-            ]);
-
-            // Восстанавливаем сортировку по умолчанию
-            setSortedInfo({
-                columnKey: 'rating',
-                order: 'ascend'
-            });
-            const sorted = [...baseData].sort((a, b) => a.rating - b.rating);
+            const ratings = baseData.map(m => m.rating || 0);
+            setRatingRange([Math.min(...ratings), Math.max(...ratings)]);
+            setSortedInfo({ columnKey: 'rating', order: 'ascend' });
+            const sorted = [...baseData].sort((a, b) => (a.rating || 0) - (b.rating || 0));
             setFilteredData(sorted);
         } else {
             setRatingRange([0, 100]);
-            setConsumptionRange([0, 10000]);
-            setSquareRange([0, 200]);
             setFilteredData([]);
         }
-        setElectricFilter('all');
     };
 
-    // Обработчик изменения сортировки
     const handleTableChange = (pagination: any, filters: any, sorter: any) => {
-        if (Array.isArray(sorter)) {
-            // Множественная сортировка (если нужно)
-        } else {
+        if (!Array.isArray(sorter)) {
             setSortedInfo({
                 columnKey: sorter.columnKey as string,
                 order: sorter.order as 'ascend' | 'descend'
             });
         }
-        applyFilters(); // Переприменяем фильтры с новой сортировкой
+        applyFilters();
     };
 
-    // Экспорт в Excel
     const exportToExcel = (type: 'xlsx' | 'csv') => {
         const dataToExport = filteredData.map(meter => ({
-            "ID": meter.id,
             "ФИО клиента": meter.name,
             "Рейтинг": meter.rating,
             "Адрес": meter.address,
-            "Последние показания": meter.lastConsumption,
-            "Тариф": meter.tariffName,
-            "Цена тарифа": meter.tariffPrice,
-            "Регион": meter.region,
-            "Площадь (м²)": meter.meterDetails?.square,
-            "Электроотопление": meter.meterDetails?.hasElectricHeating ? "Да" : "Нет",
-            "Электроплита": meter.meterDetails?.hasElectricStove ? "Да" : "Нет",
-            "Тип помещения": meter.meterDetails?.facilityName,
-            "Населенный пункт": meter.meterDetails?.settlementName
+            "Площадь (м²)": meter.meter_details?.square,
+            "Тип помещения": meter.meter_details?.facility_type_name,
+            "Количество жильцов": meter.meter_details?.residents_count,
+            "Количество комнат": meter.meter_details?.rooms_count
         }));
 
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Счетчики");
 
-        var mscDate = new Date();
-        mscDate.setHours(mscDate.getHours() + 3); // Moscow datetime
-
+        const mscDate = new Date();
+        mscDate.setHours(mscDate.getHours() + 3);
         const fileName = `счетчики_${mscDate.toISOString().slice(0, 10)}`;
-        if (type === 'xlsx') {
-            XLSX.writeFile(workbook, `${fileName}.xlsx`);
-        } else {
-            XLSX.writeFile(workbook, `${fileName}.csv`, { bookType: 'csv' });
-        }
+        
+        XLSX.writeFile(workbook, `${fileName}.${type}`, { bookType: type });
     };
 
-    // Развернутая строка с дополнительной информацией
     const expandedRowRender = (record: Meter) => {
         return (
             <div style={{ padding: '16px 24px', background: '#fafafa' }}>
-                <Space direction="vertical" size="middle">
-                    <Flex gap="large">
-                        <Space direction="vertical">
-                            <Text strong>Площадь: {record.meterDetails?.square || '-'} м²</Text>
-                            <Text strong>Тип помещения: {record.meterDetails?.facilityName || '-'}</Text>
-                        </Space>
-                        <Space direction="vertical">
-                            <Text strong>Электроотопление: {record.meterDetails?.hasElectricHeating ? 'Да' : 'Нет'}</Text>
-                            <Text strong>Электроплита: {record.meterDetails?.hasElectricStove ? 'Да' : 'Нет'}</Text>
-                        </Space>
-                        <Space direction="vertical">
-                            <Text strong>Населенный пункт: {record.meterDetails?.settlementName || '-'}</Text>
-                        </Space>
-                    </Flex>
-                </Space>
+                <Flex gap="large" wrap>
+                    <Space direction="vertical" style={{ width: 250 }}>
+                        <Text strong>Площадь: {record.meter_details?.square || '-'} м²</Text>
+                        <Text strong>Тип помещения: {record.meter_details?.facility_type_name || '-'}</Text>
+                    </Space>
+                    <Space direction="vertical" style={{ width: 250 }}>
+                        <Text strong>Количество жильцов: {record.meter_details?.residents_count || '-'}</Text>
+                        <Text strong>Количество комнат: {record.meter_details?.rooms_count || '-'}</Text>
+                    </Space>
+                    <Space direction="vertical">
+                        <Text strong>Статус проверки: {record.verified_status || 'Не проверено'}</Text>
+                    </Space>
+                </Flex>
             </div>
         );
     };
 
+    const onSelectChange = (newSelectedRowKeys: React.Key[]) => {
+        setSelectedRowKeys(newSelectedRowKeys);
+    };
+
+    const rowSelection = {
+        selectedRowKeys,
+        onChange: onSelectChange,
+        selections: [
+            Table.SELECTION_ALL,
+            Table.SELECTION_INVERT,
+            Table.SELECTION_NONE,
+        ],
+    };
+
+    const handleCreateRoute = () => {
+        if (selectedRowKeys.length === 0) {
+            message.warning('Выберите хотя бы одну точку для маршрута');
+            return;
+        }
+        setIsRouteModalVisible(true);
+    };
+
+    const handleRemoveSelected = (meterId: number) => {
+        setSelectedRowKeys(selectedRowKeys.filter(key => key !== meterId));
+    };
+
+    const getSelectedMeters = () => {
+        return filteredData.filter(meter => selectedRowKeys.includes(meter.meter_id));
+    };
+
+    const handleCompleteTrip = () => {
+        if (!selectedEmployee) {
+            message.warning('Выберите сотрудника для выезда');
+            return;
+        }
+
+        const trip: Trip = {
+            employee: selectedEmployee,
+            points: getSelectedMeters()
+        };
+
+        console.log('Сформирован выезд:', trip);
+        message.success(`Выезд успешно сформирован для сотрудника ${selectedEmployee.name}`);
+        setIsRouteModalVisible(false);
+        setSelectedRowKeys([]);
+        setSelectedEmployee(null);
+    };
+
     const columns = [
-        {
-            title: 'ID',
-            dataIndex: 'id',
-            key: 'id',
-            width: 20,
-            sorter: (a: Meter, b: Meter) => a.id - b.id,
-            sortOrder: sortedInfo.columnKey === 'id' ? sortedInfo.order : null
-        },
         {
             title: 'ФИО клиента',
             dataIndex: 'name',
             key: 'name',
             width: 250,
-            sorter: (a: Meter, b: Meter) => a.name.localeCompare(b.name),
+            sorter: (a: Meter, b: Meter) => (a.name || '').localeCompare(b.name || ''),
             sortOrder: sortedInfo.columnKey === 'name' ? sortedInfo.order : null,
             render: (text: string) => (
                 <Text strong style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -296,99 +316,62 @@ export const MeterTable = ({ meters = [] }: Props) => {
             dataIndex: 'rating',
             key: 'rating',
             width: 100,
-            sorter: (a: Meter, b: Meter) => a.rating - b.rating,
+            sorter: (a: Meter, b: Meter) => (a.rating || 0) - (b.rating || 0),
             sortOrder: sortedInfo.columnKey === 'rating' ? sortedInfo.order : null,
             render: (rating: number) => <p>{rating}%</p>
         },
         {
-            title: 'Последние показания',
-            dataIndex: 'lastConsumption',
-            key: 'lastConsumption',
-            width: 150,
-            sorter: (a: Meter, b: Meter) => (a.lastConsumption || 0) - (b.lastConsumption || 0),
-            sortOrder: sortedInfo.columnKey === 'lastConsumption' ? sortedInfo.order : null,
-            render: (value?: number) => (
-                <Text strong>
-                    {value || 0} кВт·ч
-                </Text>
-            )
-        },
-        {
-            title: 'Тариф',
-            key: 'tariff',
-            width: 200,
-            sorter: (a: Meter, b: Meter) => (a.tariffName || '').localeCompare(b.tariffName || ''),
-            sortOrder: sortedInfo.columnKey === 'tariff' ? sortedInfo.order : null,
-            render: (_: any, record: Meter) => (
-                <Space direction="vertical" size="small">
-                    <Text>{record.tariffName || '-'}</Text>
-                    {record.tariffPrice && (
-                        <Text type="secondary">{record.tariffPrice} ₽</Text>
-                    )}
-                </Space>
-            )
-        },
-        {
-            title: 'Регион',
-            dataIndex: 'region',
-            key: 'region',
-            width: 150,
-            sorter: (a: Meter, b: Meter) => (a.region || '').localeCompare(b.region || ''),
-            sortOrder: sortedInfo.columnKey === 'region' ? sortedInfo.order : null,
-            render: (text: string) => (
-                <Text style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {text}
-                </Text>
-            )
-        },
-        {
             title: 'Действия',
             key: 'actions',
-            width: 120,
+            width: 200,
             render: (_: any, record: Meter) => (
-                <Button 
-                    icon={<LineChartOutlined />} 
-                    onClick={() => router.push(`/consumptionChart?meterId=${record.id}`)}
-                >
-                    График потребления
-                </Button>
+                <Space>
+                    <Button 
+                        icon={<LineChartOutlined />} 
+                        onClick={() => router.push(`/consumptionChart?meterId=${record.meter_id}`)}
+                    >
+                        График
+                    </Button>
+                    <Button 
+                        icon={<UserOutlined />}
+                        onClick={() => router.push(`/profile?meterId=${record.meter_id}`)}
+                    >
+                        Профиль
+                    </Button>
+                </Space>
             )
         }
     ];
 
-    // Получаем минимальные и максимальные значения для слайдеров
-    const getSliderRange = (data: Meter[], key: 'rating' | 'lastConsumption' | 'meterDetails.square') => {
-        if (data.length === 0) return { min: 0, max: 100 };
-        
-        const values = data.map(m => {
-            if (key === 'meterDetails.square') return m.meterDetails?.square || 0;
-            if (key === 'lastConsumption') return m.lastConsumption || 0;
-            return m.rating;
-        });
-        
+    const getRatingSliderRange = () => {
+        if (baseData.length === 0) return { min: 0, max: 100 };
+        const ratings = baseData.map(m => m.rating || 0);
         return {
-            min: Math.min(...values),
-            max: Math.max(...values)
+            min: Math.min(...ratings),
+            max: Math.max(...ratings)
         };
     };
 
-    const ratingSliderRange = getSliderRange(baseData, 'rating');
-    const consumptionSliderRange = getSliderRange(baseData, 'lastConsumption');
-    const squareSliderRange = getSliderRange(baseData, 'meterDetails.square');
+    const ratingSliderRange = getRatingSliderRange();
+
+    const getRoutePoints = () => {
+        return getSelectedMeters().map(meter => ({
+            latitude: meter.geodata?.latitude || 0,
+            longitude: meter.geodata?.longitude || 0,
+            address: meter.address || 'Адрес не указан',
+            accountId: meter.meter_id,
+            buildingType: meter.meter_details?.facility_type_name || 'Не указан',
+            roomsCount: meter.meter_details?.rooms_count || 0,
+            residentsCount: meter.meter_details?.residents_count || 0,
+            totalArea: meter.meter_details?.square || 0
+        }));
+    };
 
     return (
         <Layout style={{ background: "transparent", padding: 24 }}>
             <Space direction="vertical" size="middle" style={{ display: 'flex' }}>
                 <Flex justify="space-between" align="center" wrap="wrap" gap="middle">
                     <Flex align="center" gap="middle" wrap>
-                        <Input
-                            placeholder="Поиск по ID"
-                            value={searchId}
-                            onChange={(e) => setSearchId(e.target.value)}
-                            onPressEnter={applyFilters}
-                            suffix={<SearchOutlined />}
-                            style={{ width: 200 }}
-                        />
                         <Input
                             placeholder="Поиск по ФИО"
                             value={searchName}
@@ -404,14 +387,6 @@ export const MeterTable = ({ meters = [] }: Props) => {
                             onPressEnter={applyFilters}
                             suffix={<SearchOutlined />}
                             style={{ width: 250 }}
-                        />
-                        <Input
-                            placeholder="Поиск по региону"
-                            value={searchRegion}
-                            onChange={(e) => setSearchRegion(e.target.value)}
-                            onPressEnter={applyFilters}
-                            suffix={<SearchOutlined />}
-                            style={{ width: 200 }}
                         />
                     </Flex>
 
@@ -445,68 +420,23 @@ export const MeterTable = ({ meters = [] }: Props) => {
                         />
                     </Space>
 
-                    <Space direction="vertical" style={{ width: 300 }}>
-                        <Text style={{color: "white"}}>Показания: {consumptionRange[0]} - {consumptionRange[1]} кВт·ч</Text>
-                        <Slider
-                            range
-                            min={consumptionSliderRange.min}
-                            max={consumptionSliderRange.max}
-                            step={Math.max(1, Math.floor((consumptionSliderRange.max - consumptionSliderRange.min) / 100))}
-                            value={consumptionRange}
-                            onChange={(value) => setConsumptionRange(value as [number, number])}
-                            onChangeComplete={applyFilters}
-                        />
-                    </Space>
-
-                    <Space direction="vertical" style={{ width: 250 }}>
-                        <Text style={{color: "white"}}>Площадь: {squareRange[0]} - {squareRange[1]} м²</Text>
-                        <Slider
-                            range
-                            min={squareSliderRange.min}
-                            max={squareSliderRange.max}
-                            value={squareRange}
-                            onChange={(value) => setSquareRange(value as [number, number])}
-                            onChangeComplete={applyFilters}
-                        />
-                    </Space>
-
-                    <Space direction="vertical" style={{ width: 200 }}>
-                        <Text style={{color: "white"}}>Электрооборудование:</Text>
-                        <Dropdown
-                            menu={{
-                                items: [
-                                    { key: 'all', label: 'Все' },
-                                    { key: 'heating', label: 'С электроотоплением' },
-                                    { key: 'stove', label: 'С электроплитой' },
-                                    { key: 'none', label: 'Без электрооборудования' }
-                                ],
-                                selectedKeys: [electricFilter],
-                                onClick: ({ key }) => {
-                                    setElectricFilter(key as any);
-                                    applyFilters();
-                                }
-                            }}
+                    <Flex gap="middle">
+                        <Button onClick={resetFilters}>Сбросить фильтры</Button>
+                        <Button 
+                            type="primary" 
+                            onClick={handleCreateRoute}
+                            disabled={selectedRowKeys.length === 0}
                         >
-                            <Button>
-                                {{
-                                    all: 'Все',
-                                    heating: 'С электроотоплением',
-                                    stove: 'С электроплитой',
-                                    none: 'Без электрооборудования'
-                                }[electricFilter]}
-                                <DownOutlined />
-                            </Button>
-                        </Dropdown>
-                    </Space>
-
-                    <Button onClick={resetFilters}>Сбросить фильтры</Button>
+                            Сформировать выезд ({selectedRowKeys.length})
+                        </Button>
+                    </Flex>
                 </Flex>
 
                 <div ref={tableRef}>
                     <Table
                         columns={columns}
                         dataSource={filteredData}
-                        rowKey="id"
+                        rowKey="meter_id"
                         bordered
                         size="middle"
                         scroll={{ x: 'max-content' }}
@@ -514,6 +444,7 @@ export const MeterTable = ({ meters = [] }: Props) => {
                             expandedRowRender,
                             rowExpandable: () => true
                         }}
+                        rowSelection={rowSelection}
                         onRow={(record) => ({
                             style: { 
                                 background: getRowColor(record.rating),
@@ -542,6 +473,102 @@ export const MeterTable = ({ meters = [] }: Props) => {
                     />
                 </div>
             </Space>
+
+            <Modal
+                title="Формирование маршрута"
+                open={isRouteModalVisible}
+                onCancel={() => setIsRouteModalVisible(false)}
+                footer={null}
+                width="90%"
+                style={{ top: 20 }}
+            >
+                <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                    <Card title="Выбранные точки" variant='borderless'>
+                        <List
+                            dataSource={getSelectedMeters()}
+                            renderItem={(meter) => (
+                                <List.Item
+                                    actions={[
+                                        <Button 
+                                            icon={<CloseOutlined />} 
+                                            onClick={() => handleRemoveSelected(meter.meter_id)}
+                                            danger
+                                        />
+                                    ]}
+                                >
+                                    <List.Item.Meta
+                                        title={meter.name}
+                                        description={meter.address}
+                                    />
+                                    <div style={{ marginRight: 16 }}>
+                                        <Tag color="blue">{meter.meter_details?.facility_type_name}</Tag>
+                                        <Tag color="green">{meter.rating}%</Tag>
+                                    </div>
+                                </List.Item>
+                            )}
+                        />
+                    </Card>
+
+                    {/* Карта маршрута */}
+                    <Card title="Карта маршрута" variant='borderless'>
+                        <div style={{ height: '500px' }}>
+                            {apiReady ? (
+                                <MapRoute points={getRoutePoints()} />
+                            ) : (
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    height: '100%',
+                                    flexDirection: 'column'
+                                }}>
+                                    <h1>Загрузка карты...</h1>
+                                    <div style={{
+                                        width: '200px',
+                                        height: '4px',
+                                        backgroundColor: '#f0f0f0',
+                                        borderRadius: '2px',
+                                        marginTop: '20px',
+                                        overflow: 'hidden'
+                                    }}>
+                                        <div style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            backgroundColor: '#4CAF50',
+                                            animation: 'loading 1.5s infinite ease-in-out',
+                                            transformOrigin: 'left center'
+                                        }}></div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </Card>
+
+                    <Card variant='borderless'>
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                            <Text strong>Сотрудник для выезда:</Text>
+                            <Select
+                                style={{ width: '100%' }}
+                                placeholder="Выберите сотрудника"
+                                options={employees.map(e => ({ value: e.id, label: e.name }))}
+                                onChange={(value) => {
+                                    const emp = employees.find(e => e.id === value);
+                                    setSelectedEmployee(emp || null);
+                                }}
+                            />
+                            
+                            <Button 
+                                type="primary" 
+                                onClick={handleCompleteTrip}
+                                style={{ marginTop: 16 }}
+                                disabled={!selectedEmployee}
+                            >
+                                Закончить формирование выезда
+                            </Button>
+                        </Space>
+                    </Card>
+                </Space>
+            </Modal>
         </Layout>
     );
 };
