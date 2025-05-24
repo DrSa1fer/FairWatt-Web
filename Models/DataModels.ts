@@ -2,8 +2,6 @@
 interface Meter {
     meter_id: number,
     facility_id?: number,
-    client_id?: number,
-    name?: string, // ФИО клиента
     rating?: number, // от 0 до 100 (0 - плохо, 100 - хорошо)
     address?: string, // Город, ул. Улица, д. 1
     meter_details?: {
@@ -12,6 +10,7 @@ interface Meter {
         residents_count?: number, // Количество жильцов
         rooms_count?: number // Количество комнат
     },
+    client?: Client,
     geodata?: {
         latitude: number, // Широта
         longitude: number // Долгота
@@ -19,6 +18,14 @@ interface Meter {
     consumption?: Consumption[], // Показатели счетчиков
     is_first?: boolean | null, // Первая ли точка в маршруте
     verified_status?: string | null // Статус проверки (если проверка была)
+}
+
+// Клиент
+interface Client {
+    client_id?: number,
+    name?: string, // ФИО клиента
+    phone?: string, // Номер телефона клиента
+    email?: string // Почта
 }
 
 // Потребление (на дату)
@@ -30,7 +37,7 @@ interface Consumption {
 
 // Выезд
 interface Trip {
-    trip_id: number,
+    trip_id?: number,
     employee: Employee, // Сотрудник (бригада)
     points: Meter[], // Точки для выезда
     from_time?: Date, // Время начала выезда

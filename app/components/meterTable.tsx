@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Button, Flex, Input, Layout, Space, Table, Slider, Dropdown, Typography, Modal, message, Tag, List, Card, Select } from "antd";
-import { DownloadOutlined, DownOutlined, SearchOutlined, LineChartOutlined, UserOutlined, CloseOutlined } from '@ant-design/icons';
+import { Button, Flex, Input, Layout, Space, Table, Slider, Dropdown, Typography, Modal, message, Tag, List, Card, Select, Descriptions, Avatar } from "antd";
+import { DownloadOutlined, DownOutlined, SearchOutlined, LineChartOutlined, UserOutlined, CloseOutlined, PhoneOutlined, MailOutlined, HomeOutlined } from '@ant-design/icons';
 import * as XLSX from 'xlsx';
 import '@ant-design/v5-patch-for-react-19';
-import {useRouter} from "next/navigation";
+import { useRouter } from "next/navigation";
 import dynamic from 'next/dynamic';
+
+const IS_DEBUG_MODE = process.env.NEXT_PUBLIC_DEBUG_MODE === 'true';
 
 // Динамическая загрузка с отключением SSR
 const MapRoute = dynamic(() => import('../components/mapRoute'), {
@@ -40,29 +42,23 @@ const MapRoute = dynamic(() => import('../components/mapRoute'), {
 
 interface Props {
     meters: Meter[];
+    pagination?: {
+        current: number;
+        pageSize: number;
+        total: number;
+    };
+    onTableChange?: (pagination: any) => void;
+    loading?: boolean;
 }
 
-interface Employee {
-    id: number;
-    name: string;
-}
+const { Text } = Typography;
 
-interface Trip {
-    employee: Employee;
-    points: Meter[];
-}
-
-const {Text} = Typography;
-
-// Моковые данные сотрудников
-const employees: Employee[] = [
-    {id: 1, name: 'Иванов Алексей Петрович'},
-    {id: 2, name: 'Петрова Мария Сергеевна'},
-    {id: 3, name: 'Сидоров Дмитрий Иванович'},
-    {id: 4, name: 'Кузнецова Ольга Владимировна'},
-];
-
-export const MeterTable = ({meters = []}: Props) => {
+export const MeterTable = ({
+    meters = [],
+    pagination = { current: 1, pageSize: 10, total: 0 },
+    onTableChange,
+    loading = false
+}: Props) => {
     const router = useRouter();
     const [baseData] = useState<Meter[]>(meters);
     const [filteredData, setFilteredData] = useState<Meter[]>(meters);
@@ -70,26 +66,60 @@ export const MeterTable = ({meters = []}: Props) => {
     const [isRouteModalVisible, setIsRouteModalVisible] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
     const [apiReady, setApiReady] = useState(false);
+    const [employees, setEmployees] = useState<Employee[]>([]);
+    const [employeesLoading, setEmployeesLoading] = useState(false);
     const tableRef = useRef<HTMLDivElement>(null);
 
-    // Загрузка API Яндекс.Карт
+    // Загрузка API Яндекс.Карт и сотрудников
     useEffect(() => {
-        if (window._ymapsLoaded) {
-            setApiReady(true);
-            return;
-        }
+        const loadData = async () => {
+            // Загрузка Яндекс Карт
+            if (window._ymapsLoaded) {
+                setApiReady(true);
+            } else if (!document.querySelector('script[src*="api-maps.yandex.ru"]')) {
+                const script = document.createElement('script');
+                script.src = `https://api-maps.yandex.ru/2.1/?` + process.env.NEXT_PUBLIC_YANDEX_MAPS_API_KEY + `&lang=ru_RU&load=package.full`;
+                script.onload = () => {
+                    window.ymaps.ready(() => {
+                        window._ymapsLoaded = true;
+                        setApiReady(true);
+                    });
+                };
+                document.head.appendChild(script);
+            }
 
-        if (!window._ymapsLoaded && !document.querySelector('script[src*="api-maps.yandex.ru"]')) {
-            const script = document.createElement('script');
-            script.src = `https://api-maps.yandex.ru/2.1/?apikey=e11435b1-e889-4652-9c53-6669d6fea872&lang=ru_RU&load=package.full`;
-            script.onload = () => {
-                window.ymaps.ready(() => {
-                    window._ymapsLoaded = true;
-                    setApiReady(true);
-                });
-            };
-            document.head.appendChild(script);
-        }
+            // Загрузка сотрудников
+            try {
+                if (IS_DEBUG_MODE) {
+                    setEmployees([
+                        { employee_id: 1, name: 'Иванов Алексей Петрович' },
+                        { employee_id: 2, name: 'Петрова Мария Сергеевна' },
+                        { employee_id: 3, name: 'Сидоров Дмитрий Иванович' },
+                        { employee_id: 4, name: 'Кузнецова Ольга Владимировна' },
+                    ]);
+                } else {
+                    setEmployeesLoading(true);
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST || 'http://10.8.0.99:8000'}/api/v1/employees`);
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch employees');
+                    }
+                    const data = await response.json();
+                    setEmployees(data);
+                }
+            } catch (error) {
+                console.error('Error loading employees:', error);
+                setEmployees([
+                    { employee_id: 1, name: 'Иванов Алексей Петрович' },
+                    { employee_id: 2, name: 'Петрова Мария Сергеевна' },
+                    { employee_id: 3, name: 'Сидоров Дмитрий Иванович' },
+                    { employee_id: 4, name: 'Кузнецова Ольга Владимировна' },
+                ]);
+            } finally {
+                setEmployeesLoading(false);
+            }
+        };
+
+        loadData();
 
         return () => {
             // Очистка при необходимости
@@ -106,6 +136,7 @@ export const MeterTable = ({meters = []}: Props) => {
 
     const [searchName, setSearchName] = useState('');
     const [searchAddress, setSearchAddress] = useState('');
+    const [searchPhone, setSearchPhone] = useState('');
     const [ratingRange, setRatingRange] = useState<[number, number]>([0, 100]);
 
     useEffect(() => {
@@ -121,20 +152,24 @@ export const MeterTable = ({meters = []}: Props) => {
     }, [baseData]);
 
     const getRowColor = (rating: number = 0) => {
-        if (rating < 20) return '#ff7875';
-        if (rating < 40) return '#ff9c6e';
-        if (rating < 60) return '#ffc069';
-        if (rating < 80) return '#91d5ff';
-        return '#b7eb8f';
+        if (rating < 20) return '#ff4d4f';  // Ярко-красный
+        if (rating < 40) return '#ff7a45';  // Ярко-оранжевый
+        if (rating < 60) return '#ffa940';  // Ярко-желтый
+        if (rating < 80) return '#1890ff';  // Ярко-синий
+        return '#52c41a';                   // Ярко-зеленый
     };
 
     const applyFilters = () => {
         let filtered = baseData.filter(meter => {
-            if (searchName && !meter.name?.toLowerCase().includes(searchName.toLowerCase())) {
+            if (searchName && !meter.client?.name?.toLowerCase().includes(searchName.toLowerCase())) {
                 return false;
             }
 
             if (searchAddress && meter.address && !meter.address.toLowerCase().includes(searchAddress.toLowerCase())) {
+                return false;
+            }
+
+            if (searchPhone && meter.client?.phone && !meter.client.phone.includes(searchPhone)) {
                 return false;
             }
 
@@ -154,8 +189,8 @@ export const MeterTable = ({meters = []}: Props) => {
                 }
                 if (sortedInfo.columnKey === 'name') {
                     return sortedInfo.order === 'ascend'
-                        ? (a.name || '').localeCompare(b.name || '')
-                        : (b.name || '').localeCompare(a.name || '');
+                        ? (a.client?.name || '').localeCompare(b.client?.name || '')
+                        : (b.client?.name || '').localeCompare(a.client?.name || '');
                 }
                 if (sortedInfo.columnKey === 'address') {
                     return sortedInfo.order === 'ascend'
@@ -172,10 +207,11 @@ export const MeterTable = ({meters = []}: Props) => {
     const resetFilters = () => {
         setSearchName('');
         setSearchAddress('');
+        setSearchPhone('');
         if (baseData.length > 0) {
             const ratings = baseData.map(m => m.rating || 0);
             setRatingRange([Math.min(...ratings), Math.max(...ratings)]);
-            setSortedInfo({columnKey: 'rating', order: 'ascend'});
+            setSortedInfo({ columnKey: 'rating', order: 'ascend' });
             const sorted = [...baseData].sort((a, b) => (a.rating || 0) - (b.rating || 0));
             setFilteredData(sorted);
         } else {
@@ -184,19 +220,26 @@ export const MeterTable = ({meters = []}: Props) => {
         }
     };
 
-    const handleTableChange = (pagination: any, filters: any, sorter: any) => {
+    const handleTableChange = (tablePagination: any, filters: any, sorter: any) => {
         if (!Array.isArray(sorter)) {
             setSortedInfo({
                 columnKey: sorter.columnKey as string,
                 order: sorter.order as 'ascend' | 'descend'
             });
         }
+
+        if (onTableChange) {
+            onTableChange(tablePagination);
+        }
+
         applyFilters();
     };
 
     const exportToExcel = (type: 'xlsx' | 'csv') => {
         const dataToExport = filteredData.map(meter => ({
-            "ФИО клиента": meter.name,
+            "ФИО клиента": meter.client?.name,
+            "Телефон": meter.client?.phone,
+            "Email": meter.client?.email,
             "Рейтинг": meter.rating,
             "Адрес": meter.address,
             "Площадь (м²)": meter.meter_details?.square,
@@ -213,26 +256,50 @@ export const MeterTable = ({meters = []}: Props) => {
         mscDate.setHours(mscDate.getHours() + 3);
         const fileName = `счетчики_${mscDate.toISOString().slice(0, 10)}`;
 
-        XLSX.writeFile(workbook, `${fileName}.${type}`, {bookType: type});
+        XLSX.writeFile(workbook, `${fileName}.${type}`, { bookType: type });
     };
 
     const expandedRowRender = (record: Meter) => {
         return (
-            <div style={{ padding: '16px 24px', background: '#fafafa' }}>
-                <Flex gap="large" wrap>
-                    <Space direction="vertical" style={{width: 250}}>
-                        <Text strong>Площадь: {record.meter_details?.square || '-'} м²</Text>
-                        <Text strong>Тип помещения: {record.meter_details?.facility_type_name || '-'}</Text>
-                    </Space>
-                    <Space direction="vertical" style={{width: 250}}>
-                        <Text strong>Количество жильцов: {record.meter_details?.residents_count || '-'}</Text>
-                        <Text strong>Количество комнат: {record.meter_details?.rooms_count || '-'}</Text>
-                    </Space>
-                    <Space direction="vertical">
-                        <Text strong>Статус проверки: {record.verified_status || 'Не проверено'}</Text>
-                    </Space>
-                </Flex>
-            </div>
+            <Card 
+                bordered={false} 
+                style={{ background: '#fafafa', borderRadius: 8 }}
+                bodyStyle={{ padding: '16px 24px' }}
+            >
+                <Descriptions 
+                    column={{ xs: 1, sm: 2, md: 3 }}
+                    size="small"
+                    bordered
+                >
+                    <Descriptions.Item label={<><HomeOutlined /> Площадь</>}>
+                        {record.meter_details?.square || '-'} м²
+                    </Descriptions.Item>
+                    <Descriptions.Item label={<><HomeOutlined /> Тип помещения</>}>
+                        {record.meter_details?.facility_type_name || '-'}
+                    </Descriptions.Item>
+                    <Descriptions.Item label={<><UserOutlined /> Жильцы</>}>
+                        {record.meter_details?.residents_count || '-'}
+                    </Descriptions.Item>
+                    <Descriptions.Item label={<><HomeOutlined /> Комнаты</>}>
+                        {record.meter_details?.rooms_count || '-'}
+                    </Descriptions.Item>
+                    <Descriptions.Item label={<><PhoneOutlined /> Телефон</>} span={2}>
+                        {record.client?.phone ? (
+                            <a href={`tel:${record.client.phone}`}>{record.client.phone}</a>
+                        ) : '-'}
+                    </Descriptions.Item>
+                    <Descriptions.Item label={<><MailOutlined /> Email</>} span={3}>
+                        {record.client?.email ? (
+                            <a href={`mailto:${record.client.email}`}>{record.client.email}</a>
+                        ) : '-'}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Статус проверки">
+                        <Tag color={record.verified_status ? 'green' : 'orange'}>
+                            {record.verified_status || 'Не проверено'}
+                        </Tag>
+                    </Descriptions.Item>
+                </Descriptions>
+            </Card>
         );
     };
 
@@ -290,15 +357,21 @@ export const MeterTable = ({meters = []}: Props) => {
             dataIndex: 'name',
             key: 'name',
             width: 250,
-            sorter: (a: Meter, b: Meter) => (a.name || '').localeCompare(b.name || ''),
+            sorter: (a: Meter, b: Meter) => (a.client?.name || '').localeCompare(b.client?.name || ''),
             sortOrder: sortedInfo.columnKey === 'name' ? sortedInfo.order : null,
             render: (_: any, record: Meter) => (
-                <div style={{display: 'flex', flexDirection: 'column'}}>
-                    <Text onClick={() => router.push(`/profile?meterId=${record.meter_id}`)}
-                        strong style={{whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
-                        {record.name}
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <Text 
+                        onClick={() => router.push(`/profile?meterId=${record.meter_id}`)}
+                        strong 
+                        style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                    >
+                        {record.client?.name}
                     </Text>
-                    <Text type="secondary" style={{whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                    <Text 
+                        type="secondary" 
+                        style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                    >
                         {record.address}
                     </Text>
                 </div>
@@ -311,13 +384,13 @@ export const MeterTable = ({meters = []}: Props) => {
             render: (_: any, record: Meter) => (
                 <Space>
                     <Button
-                        icon={<LineChartOutlined/>}
+                        icon={<LineChartOutlined />}
                         onClick={() => router.push(`/consumptionChart?meterId=${record.meter_id}`)}
                     >
                         График
                     </Button>
                     <Button
-                        icon={<UserOutlined/>}
+                        icon={<UserOutlined />}
                         onClick={() => router.push(`/profile?meterId=${record.meter_id}`)}
                     >
                         Профиль
@@ -329,30 +402,39 @@ export const MeterTable = ({meters = []}: Props) => {
             title: 'Рейтинг',
             dataIndex: 'rating',
             key: 'rating',
-            width: 100,
+            width: '10%',
             sorter: (a: Meter, b: Meter) => (a.rating || 0) - (b.rating || 0),
             sortOrder: sortedInfo.columnKey === 'rating' ? sortedInfo.order : null,
             render: (rating: number) => (
                 <div
                     style={{
-                        width: 32,
-                        height: 32,
-                        lineHeight: '32px',
-                        borderRadius: '50%',
-                        backgroundColor: getRowColor(rating),
-                        color: '#000',
-                        textAlign: 'center',
-                        fontWeight: 'bold'
+                        width: '100%',
+                        display: 'flex',
+                        justifyContent: 'center'
                     }}
                 >
-                    {rating}
+                    <div
+                        style={{
+                            width: 32,
+                            height: 32,
+                            lineHeight: '32px',
+                            borderRadius: '50%',
+                            backgroundColor: getRowColor(rating),
+                            color: 'white',
+                            textAlign: 'center',
+                            fontWeight: 'bold',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}
+                    >
+                        {rating}
+                    </div>
                 </div>
             )
         }
     ];
 
     const getRatingSliderRange = () => {
-        if (baseData.length === 0) return {min: 0, max: 100};
+        if (baseData.length === 0) return { min: 0, max: 100 };
         const ratings = baseData.map(m => m.rating || 0);
         return {
             min: Math.min(...ratings),
@@ -376,8 +458,8 @@ export const MeterTable = ({meters = []}: Props) => {
     };
 
     return (
-        <Layout style={{background: "transparent", padding: 24}}>
-            <Space direction="vertical" size="middle" style={{display: 'flex'}}>
+        <Layout style={{ background: "transparent", padding: 24 }}>
+            <Space direction="vertical" size="middle" style={{ display: 'flex' }}>
                 <Flex justify="space-between" align="center" wrap="wrap" gap="middle">
                     <Flex align="center" gap="middle" wrap>
                         <Input
@@ -385,39 +467,47 @@ export const MeterTable = ({meters = []}: Props) => {
                             value={searchName}
                             onChange={(e) => setSearchName(e.target.value)}
                             onPressEnter={applyFilters}
-                            suffix={<SearchOutlined/>}
-                            style={{width: 250}}
+                            suffix={<SearchOutlined />}
+                            style={{ width: 250 }}
                         />
                         <Input
                             placeholder="Поиск по адресу"
                             value={searchAddress}
                             onChange={(e) => setSearchAddress(e.target.value)}
                             onPressEnter={applyFilters}
-                            suffix={<SearchOutlined/>}
-                            style={{width: 250}}
+                            suffix={<SearchOutlined />}
+                            style={{ width: 250 }}
+                        />
+                        <Input
+                            placeholder="Поиск по телефону"
+                            value={searchPhone}
+                            onChange={(e) => setSearchPhone(e.target.value)}
+                            onPressEnter={applyFilters}
+                            suffix={<PhoneOutlined />}
+                            style={{ width: 250 }}
                         />
                     </Flex>
 
                     <Flex align="center" gap="middle" wrap>
-                            <Dropdown.Button
-                                icon={<DownloadOutlined/>}
-                                menu={{
-                                    items: [
-                                        {key: 'xlsx', label: 'Экспорт в Excel'},
-                                        {key: 'csv', label: 'Экспорт в CSV'}
-                                    ],
-                                    onClick: ({key}) => exportToExcel(key as 'xlsx' | 'csv')
-                                }}
-                                onClick={() => exportToExcel('xlsx')}
-                            >
-                                Экспорт
-                            </Dropdown.Button>
+                        <Dropdown.Button
+                            icon={<DownloadOutlined />}
+                            menu={{
+                                items: [
+                                    { key: 'xlsx', label: 'Экспорт в Excel' },
+                                    { key: 'csv', label: 'Экспорт в CSV' }
+                                ],
+                                onClick: ({ key }) => exportToExcel(key as 'xlsx' | 'csv')
+                            }}
+                            onClick={() => exportToExcel('xlsx')}
+                        >
+                            Экспорт
+                        </Dropdown.Button>
                     </Flex>
                 </Flex>
 
                 <Flex justify="space-between" align="center" wrap gap="middle">
-                    <Space direction="vertical" style={{width: 300}}>
-                        <Text style={{color: "white"}}>Рейтинг: {ratingRange[0]} - {ratingRange[1]}%</Text>
+                    <Space direction="vertical" style={{ width: 300 }}>
+                        <Text style={{ color: "white" }}>Рейтинг: {ratingRange[0]} - {ratingRange[1]}%</Text>
                         <Slider
                             range
                             min={ratingSliderRange.min}
@@ -434,6 +524,7 @@ export const MeterTable = ({meters = []}: Props) => {
                             type="primary"
                             onClick={handleCreateRoute}
                             disabled={selectedRowKeys.length === 0}
+                            className={selectedRowKeys.length > 0 ? "green-btn" : ""}
                         >
                             Сформировать выезд ({selectedRowKeys.length})
                         </Button>
@@ -447,12 +538,13 @@ export const MeterTable = ({meters = []}: Props) => {
                         rowKey="meter_id"
                         bordered={false}
                         size="middle"
-                        scroll={{x: 'max-content'}}
+                        scroll={{ x: 'max-content' }}
                         expandable={{
                             expandedRowRender,
                             rowExpandable: () => true
                         }}
                         rowSelection={rowSelection}
+                        loading={loading}
                         onRow={(record) => ({
                             style: {
                                 cursor: 'pointer'
@@ -473,7 +565,9 @@ export const MeterTable = ({meters = []}: Props) => {
                             },
                         }}
                         pagination={{
-                            pageSize: 10,
+                            current: pagination.current,
+                            pageSize: pagination.pageSize,
+                            total: pagination.total,
                             showSizeChanger: true,
                             pageSizeOptions: ['10', '25', '50', '100']
                         }}
@@ -488,9 +582,9 @@ export const MeterTable = ({meters = []}: Props) => {
                 onCancel={() => setIsRouteModalVisible(false)}
                 footer={null}
                 width="90%"
-                style={{top: 20}}
+                style={{ top: 20 }}
             >
-                <Space direction="vertical" size="large" style={{width: '100%'}}>
+                <Space direction="vertical" size="large" style={{ width: '100%' }}>
                     <Card title="Выбранные точки" variant='borderless'>
                         <List
                             dataSource={getSelectedMeters()}
@@ -498,19 +592,20 @@ export const MeterTable = ({meters = []}: Props) => {
                                 <List.Item
                                     actions={[
                                         <Button
-                                            icon={<CloseOutlined/>}
+                                            icon={<CloseOutlined />}
                                             onClick={() => handleRemoveSelected(meter.meter_id)}
                                             danger
                                         />
                                     ]}
                                 >
                                     <List.Item.Meta
-                                        title={meter.name}
+                                        avatar={<Avatar style={{ backgroundColor: getRowColor(meter.rating) }}>{meter.rating}</Avatar>}
+                                        title={meter.client?.name}
                                         description={meter.address}
                                     />
-                                    <div style={{marginRight: 16}}>
+                                    <div style={{ marginRight: 16 }}>
                                         <Tag color="blue">{meter.meter_details?.facility_type_name}</Tag>
-                                        <Tag color="green">{meter.rating}%</Tag>
+                                        {meter.client?.phone && <Tag icon={<PhoneOutlined />}>{meter.client.phone}</Tag>}
                                     </div>
                                 </List.Item>
                             )}
@@ -519,9 +614,9 @@ export const MeterTable = ({meters = []}: Props) => {
 
                     {/* Карта маршрута */}
                     <Card title="Карта маршрута" variant='borderless'>
-                        <div style={{height: '500px'}}>
+                        <div style={{ height: '500px' }}>
                             {apiReady ? (
-                                <MapRoute points={getRoutePoints()}/>
+                                <MapRoute points={getRoutePoints()} />
                             ) : (
                                 <div style={{
                                     display: 'flex',
@@ -553,22 +648,23 @@ export const MeterTable = ({meters = []}: Props) => {
                     </Card>
 
                     <Card variant='borderless'>
-                        <Space direction="vertical" style={{width: '100%'}}>
+                        <Space direction="vertical" style={{ width: '100%' }}>
                             <Text strong>Сотрудник для выезда:</Text>
                             <Select
-                                style={{width: '100%'}}
+                                style={{ width: '100%' }}
                                 placeholder="Выберите сотрудника"
-                                options={employees.map(e => ({value: e.id, label: e.name}))}
+                                options={employees.map(e => ({ value: e.employee_id, label: e.name }))}
                                 onChange={(value) => {
-                                    const emp = employees.find(e => e.id === value);
+                                    const emp = employees.find(e => e.employee_id === value);
                                     setSelectedEmployee(emp || null);
                                 }}
+                                loading={employeesLoading}
                             />
 
                             <Button
                                 type="primary"
                                 onClick={handleCompleteTrip}
-                                style={{marginTop: 16}}
+                                style={{ marginTop: 16 }}
                                 disabled={!selectedEmployee}
                             >
                                 Закончить формирование выезда

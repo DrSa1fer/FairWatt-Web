@@ -21,13 +21,16 @@ const { Text } = Typography;
   theme={{
     components: {
       Menu: {
-        itemColor: 'white',
-        subMenuItemBg: 'white',
-        itemSelectedColor: 'white',
+        itemColor: 'white', // Цвет текста обычных элементов
+        itemHoverColor: 'white', // Цвет текста при наведении
+        itemSelectedColor: 'white', // Цвет текста выбранного элемента
+        itemSelectedBg: 'rgba(255, 255, 255, 0.1)', // Фон выбранного элемента (можно настроить по желанию)
       },
     },
   }}
-></ConfigProvider>
+>
+
+</ConfigProvider>
 
 type MenuItem = Required<MenuProps>['items'][number];
 
@@ -54,7 +57,7 @@ export default function RootLayout({
   useEffect(() => {
     dayjs.locale('ru');
   }, []);
-  
+
 
   // Главная страница нужна для переадресации, поэтому у неё отключен Layout
   if (pathname === "/") {
@@ -85,18 +88,18 @@ export default function RootLayout({
   }
 
   const items: MenuItem[] = [
-    // {
-    //   key: 'main',
-    //   label: <Link href={"/"}><Image src='/logo.png' width={200} preview={false} alt='Логотип' /></Link>,
-    // },
+    {
+      key: 'main',
+      label: <Link href={"/"}><Image src='/logo.svg' width={150} preview={false} alt='Логотип' /></Link>,
+    },
     {
       key: "meterList",
-      label: <Link href={"/meterList"}>Список счетчиков</Link>,
+      label: <Link href={"/meterList"} style={{ color: 'white' }}>Список счетчиков</Link>,
       icon: <InsertRowAboveOutlined />
     },
     {
       key: "consumptionChart",
-      label: <Link href={"/consumptionChart"}>График общего потребления</Link>,
+      label: <Link href={"/consumptionChart"} style={{ color: 'white' }}>График общего потребления</Link>,
       icon: <SlidersOutlined />
     }
   ];
@@ -105,6 +108,17 @@ export default function RootLayout({
     <html lang="ru">
       <body>
         <Layout style={{ minHeight: "100vh", background: "transparent" }}>
+          <ConfigProvider
+              theme={{
+                components: {
+                  Menu: {
+                    itemColor: 'white', // Цвет текста обычных элементов
+                    itemHoverColor: 'white', // Цвет текста при наведении
+                    itemSelectedColor: 'white', // Цвет текста выбранного элемента
+                    itemSelectedBg: 'rgba(255, 255, 255, 0.1)', // Фон выбранного элемента (можно настроить по желанию)
+                  },
+                },
+              }} locale={ruRU}>
           <Header style={{ background: "transparent" }}>
             <Menu
               theme="dark"
@@ -118,10 +132,9 @@ export default function RootLayout({
             />
           </Header>
           <Content style={{ padding: "0 48px", background: "transparent" }}>
-            <ConfigProvider locale={ruRU}>
               {children}
-            </ConfigProvider>
           </Content>
+          </ConfigProvider>
           <Footer style={{
             position: 'relative',
             display: 'flex',
