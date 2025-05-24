@@ -1,7 +1,8 @@
 // Счетчик
 interface Meter {
     meter_id: number,
-    facility_id: number,
+    facility_id?: number,
+    client_id?: number,
     name?: string, // ФИО клиента
     rating?: number, // от 0 до 100 (0 - плохо, 100 - хорошо)
     address?: string, // Город, ул. Улица, д. 1
@@ -16,13 +17,13 @@ interface Meter {
         longitude: number // Долгота
     }
     consumption?: Consumption[], // Показатели счетчиков
-    is_first?: boolean | null, // Первая точка в маршруте
+    is_first?: boolean | null, // Первая ли точка в маршруте
     verified_status?: string | null // Статус проверки (если проверка была)
 }
 
 // Потребление (на дату)
 interface Consumption {
-    id: number,
+    consumption_id: number,
     date: Date, // Для ежемесячных - 01 каждого месяца (01.n.n)
     value: number // Значение показателей в киловаттах
 }

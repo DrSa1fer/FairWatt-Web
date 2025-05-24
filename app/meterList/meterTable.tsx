@@ -1,8 +1,31 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Button, Flex, Input, Layout, Space, Table, Slider, Dropdown, Typography, Modal, message, Tag, List, Card, Select } from "antd";
-import { DownloadOutlined, DownOutlined, SearchOutlined, LineChartOutlined, UserOutlined, CloseOutlined } from '@ant-design/icons';
+import {useState, useRef, useEffect} from "react";
+import {
+    Button,
+    Flex,
+    Input,
+    Layout,
+    Space,
+    Table,
+    Slider,
+    Dropdown,
+    Typography,
+    Modal,
+    message,
+    Tag,
+    List,
+    Card,
+    Select
+} from "antd";
+import {
+    DownloadOutlined,
+    DownOutlined,
+    SearchOutlined,
+    LineChartOutlined,
+    UserOutlined,
+    CloseOutlined
+} from '@ant-design/icons';
 import * as XLSX from 'xlsx';
 import '@ant-design/v5-patch-for-react-19';
 import {useRouter} from "next/navigation";
@@ -286,7 +309,7 @@ export const MeterTable = ({meters = []}: Props) => {
 
     const columns = [
         {
-            title: 'Клиент',
+            title: 'ФИО клиента',
             dataIndex: 'name',
             key: 'name',
             width: 250,
@@ -307,7 +330,7 @@ export const MeterTable = ({meters = []}: Props) => {
         {
             title: 'Действия',
             key: 'actions',
-            width: '10%',
+            width: 200,
             render: (_: any, record: Meter) => (
                 <Space>
                     <Button
