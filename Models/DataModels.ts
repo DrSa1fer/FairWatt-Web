@@ -1,44 +1,38 @@
 // Счетчик
 interface Meter {
-    meter_id: number,
-    facility_id?: number,
-    rating?: number, // от 0 до 100 (0 - плохо, 100 - хорошо)
-    address?: string, // Город, ул. Улица, д. 1
-    meter_details?: {
-        square?: number, // Квадратура жилья
-        facility_type_name?: string, // Наименование типа жилья (Частный, Многоквартирный, Прочий)
-        residents_count?: number, // Количество жильцов
-        rooms_count?: number // Количество комнат
-    },
-    client?: Client,
-    geodata?: {
-        latitude: number, // Широта
-        longitude: number // Долгота
-    }
-    consumption?: Consumption[], // Показатели счетчиков
-    is_first?: boolean | null, // Первая ли точка в маршруте
-    verified_status?: string | null, // Статус проверки (если проверка была)
-    note?: string // Заметка
+    meter_id: number;
+    facility_id: number;
+    rating: number | null; // от 0 до 100 (0 - плохо, 100 - хорошо)
+    address: string | null; // Город, ул. Улица, д. 1
+    is_iot: boolean;
+    consumption?: number[] | null;
+    client: Client;
+    meter_details: MeterDetail;
+    geodata: Geodata | null;
+    verified_status: string | null; // Статус проверки (если проверка была)
+    is_first: boolean | null; // Первая ли точка в маршруте
+    note?: string | null; // Заметка
 }
 
-interface ClientData {
-    name?: string;
-    phone?: string;
-    email?: string;
+interface MeterDetail {
+    resident_count: number | null; // Количество жильцов
+    room_count: number | null; // Количество комнат
+    square: number | null; // Квадратура жилья
+    facility_type_name: string | null; // Наименование типа жилья (Частный, Многоквартирный, Прочий)
+    tariff_price?: number | null;
+    tariff_type_name?: string | null; // Потребительский, Льготный, Коммерческий, Промышленный
 }
 
-interface MeterDetails {
-    square?: number;
-    residents_count?: number;
-    rooms_count?: number;
-    facility_type_name?: string;
+interface Geodata {
+    latitude: number, // Широта
+    longitude: number // Долгота
 }
 
 // Клиент
 interface Client {
     client_id?: number,
     name?: string, // ФИО клиента
-    phone?: string, // Номер телефона клиента
+    phone?: number, // Номер телефона клиента
     email?: string // Почта
 }
 
@@ -62,4 +56,18 @@ interface Trip {
 interface Employee {
     employee_id: number,
     name: string //ФИО сотрудника
+}
+
+
+
+interface TripInput {
+    employee_id: number;
+    from_time: string | null;
+    to_time: string | null;
+    points: TripPoint[];
+}
+
+interface TripPoint {
+    facility_id: number;
+    is_first: boolean;
 }

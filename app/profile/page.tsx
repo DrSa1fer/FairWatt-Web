@@ -1,10 +1,10 @@
 "use client";
 
-import { 
-    Descriptions, 
-    Tag, 
-    List, 
-    Input, 
+import {
+    Descriptions,
+    Tag,
+    List,
+    Input,
     Avatar,
     Space,
     Typography,
@@ -15,9 +15,9 @@ import {
     Collapse,
     theme
 } from "antd";
-import { 
-    PhoneOutlined, 
-    MailOutlined, 
+import {
+    PhoneOutlined,
+    MailOutlined,
     HomeOutlined,
     EditOutlined,
     SaveOutlined,
@@ -41,7 +41,7 @@ export default function ProfilePage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const meterId = searchParams.get('meterId');
-    
+
     const [meterData, setMeterData] = useState<Meter | null>(null);
     const [loading, setLoading] = useState(true);
     const [note, setNote] = useState<string>("");
@@ -58,7 +58,7 @@ export default function ProfilePage() {
             const loadMeterData = async () => {
                 try {
                     setLoading(true);
-                    
+
                     if (IS_DEBUG_MODE) {
                         // В режиме отладки загружаем из localStorage
                         const savedData = localStorage.getItem(`meterProfile_${meterId}`);
@@ -87,12 +87,13 @@ export default function ProfilePage() {
                     setLoading(false);
                 }
             };
-            
+
             loadMeterData();
         }
     }, [meterId]);
 
-    const getRatingColor = (rating: number) => {
+    const getRatingColor = (rating: number | null) => {
+        if (!rating) return '#ffffff';
         if (rating < 20) return '#ff4d4f';
         if (rating < 40) return '#ff7a45';
         if (rating < 60) return '#ffa940';
@@ -106,7 +107,7 @@ export default function ProfilePage() {
             if (IS_DEBUG_MODE) {
                 // В режиме отладки используем mock данные
                 await new Promise(resolve => setTimeout(resolve, 500));
-                
+
                 setExternalData({
                     avito: [
                         {
@@ -140,7 +141,7 @@ export default function ProfilePage() {
                 const data = await response.json();
                 setExternalData(data);
             }
-            
+
             messageApi.success('Данные успешно собраны');
         } catch (error) {
             console.error('Error collecting external data:', error);
@@ -193,7 +194,7 @@ export default function ProfilePage() {
         );
     }
 
-    const { client, meter_details, address, rating = 0, verified_status } = meterData;
+    const { client, meter_details, address, is_iot, rating = 0, verified_status } = meterData;
 
     const customTheme = {
         components: {
@@ -235,13 +236,13 @@ export default function ProfilePage() {
     return (
         <ConfigProvider theme={customTheme}>
             {contextHolder}
-            <Layout style={{ 
-                background: "transparent", 
+            <Layout style={{
+                background: "transparent",
                 padding: 24,
                 minHeight: '100vh'
             }}>
-                <Button 
-                    icon={<ArrowLeftOutlined />} 
+                <Button
+                    icon={<ArrowLeftOutlined />}
                     onClick={() => router.back()}
                     style={{ marginBottom: 24, width: 250 }}
                 >
@@ -249,7 +250,7 @@ export default function ProfilePage() {
                 </Button>
 
                 <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                    <div style={{ 
+                    <div style={{
                         background: token.colorBgContainer,
                         padding: 24,
                         borderRadius: token.borderRadiusLG,
@@ -260,7 +261,7 @@ export default function ProfilePage() {
                         </Title>
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-                            <Card title="Жилищные данные" variant='borderless'>
+                            <Card title="Жилищные данные" variant="borderless">
                                 <Descriptions column={1}>
                                     <Descriptions.Item label={<Text strong>Адрес</Text>}>
                                         <Space>
@@ -268,20 +269,39 @@ export default function ProfilePage() {
                                             {address || 'Не указан'}
                                         </Space>
                                     </Descriptions.Item>
+
                                     <Descriptions.Item label={<Text strong>Тип помещения</Text>}>
                                         {meter_details?.facility_type_name || 'Не указан'}
                                     </Descriptions.Item>
+
                                     <Descriptions.Item label={<Text strong>Площадь</Text>}>
-                                        {meter_details?.square ? `${meter_details.square} м²` : 'Не указана'}
+                                        {meter_details?.square != null ? `${meter_details.square} м²` : 'Не указана'}
                                     </Descriptions.Item>
+
                                     <Descriptions.Item label={<Text strong>Жильцы</Text>}>
-                                        {meter_details?.residents_count || 'Не указано'}
+                                        {meter_details?.resident_count ?? 'Не указано'}
                                     </Descriptions.Item>
+
                                     <Descriptions.Item label={<Text strong>Комнаты</Text>}>
-                                        {meter_details?.rooms_count || 'Не указано'}
+                                        {meter_details?.room_count ?? 'Не указано'}
+                                    </Descriptions.Item>
+
+                                    <Descriptions.Item label={<Text strong>Тип тарифа</Text>}>
+                                        {meter_details?.tariff_type_name || 'Не указан'}
+                                    </Descriptions.Item>
+
+                                    <Descriptions.Item label={<Text strong>Цена тарифа</Text>}>
+                                        {meter_details?.tariff_price != null ? `${meter_details.tariff_price} ₽` : 'Не указана'}
+                                    </Descriptions.Item>
+
+                                    <Descriptions.Item label={<Text strong>Тип счетчика</Text>}>
+                                        {is_iot
+                                            ? <Tag color="blue">IoT</Tag>
+                                            : <Tag color="default">Обычный</Tag>}
                                     </Descriptions.Item>
                                 </Descriptions>
                             </Card>
+
 
                             <Card title="Контактные данные" variant='borderless'>
                                 <Descriptions column={1}>
@@ -309,15 +329,15 @@ export default function ProfilePage() {
                             </Card>
                         </div>
 
-                        <div style={{ 
-                            display: 'grid', 
-                            gridTemplateColumns: '1fr 1fr', 
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr 1fr',
                             gap: 24,
                             marginTop: 24
                         }}>
                             <Card title="Статус" variant='borderless'>
                                 <Space size="middle">
-                                    <Tag 
+                                    <Tag
                                         color={verified_status ? token.colorSuccess : token.colorWarning}
                                         icon={verified_status ? null : <InfoCircleOutlined />}
                                     >

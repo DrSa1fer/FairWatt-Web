@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx';
 import '@ant-design/v5-patch-for-react-19';
 import { useRouter } from "next/navigation";
 import dynamic from 'next/dynamic';
+import { useMessage } from "../hooks/useMessage";
 
 // Динамическая загрузка с отключением SSR
 const MapRoute = dynamic(() => import('../components/mapRoute'), {
@@ -57,6 +58,7 @@ export const MeterTable = ({
     onTableChange,
     loading = false
 }: Props) => {
+    const { messageApi, contextHolder } = useMessage();
     const router = useRouter();
     const [baseData] = useState<Meter[]>(meters);
     const [filteredData, setFilteredData] = useState<Meter[]>(meters);
@@ -67,15 +69,7 @@ export const MeterTable = ({
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [employeesLoading, setEmployeesLoading] = useState(false);
     const tableRef = useRef<HTMLDivElement>(null);
-
-    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-    const [selectedProfileData, setSelectedProfileData] = useState<{
-        clientData?: ClientData;
-        meterDetails?: MeterDetails;
-        address?: string;
-        rating?: number;
-        verifiedStatus?: string | null;
-    }>({});
+    const [loadingIn, setLoadingIn] = useState(false);
 
     // Загрузка API Яндекс.Карт и сотрудников
     useEffect(() => {
@@ -158,7 +152,8 @@ export const MeterTable = ({
         }
     }, [baseData]);
 
-    const getRowColor = (rating: number = 0) => {
+    const getRowColor = (rating: number | null = 0) => {
+        if (!rating) return '#ffffff';
         if (rating < 20) return '#ff4d4f';  // Ярко-красный
         if (rating < 40) return '#ff7a45';  // Ярко-оранжевый
         if (rating < 60) return '#ffa940';  // Ярко-желтый
@@ -176,8 +171,12 @@ export const MeterTable = ({
                 return false;
             }
 
-            if (searchPhone && meter.client?.phone && !meter.client.phone.includes(searchPhone)) {
-                return false;
+            if (searchPhone) {
+                // Проверяем наличие телефона и приводим к строке для поиска
+                const phone = meter.client?.phone?.toString() || '';
+                if (!phone.includes(searchPhone)) {
+                    return false;
+                }
             }
 
             if ((meter.rating || 0) < ratingRange[0] || (meter.rating || 0) > ratingRange[1]) {
@@ -244,15 +243,26 @@ export const MeterTable = ({
 
     const exportToExcel = (type: 'xlsx' | 'csv') => {
         const dataToExport = filteredData.map(meter => ({
-            "ФИО клиента": meter.client?.name,
-            "Телефон": meter.client?.phone,
-            "Email": meter.client?.email,
+            "ФИО клиента": meter.client?.name || "-",
+            "Телефон": meter.client?.phone || "-",
+            "Email": meter.client?.email || "-",
             "Рейтинг": meter.rating,
             "Адрес": meter.address,
-            "Площадь (м²)": meter.meter_details?.square,
-            "Тип помещения": meter.meter_details?.facility_type_name,
-            "Количество жильцов": meter.meter_details?.residents_count,
-            "Количество комнат": meter.meter_details?.rooms_count
+            "Тип счетчика": meter.is_iot ? "Посуточный" : "Обычный",
+            "Статус проверки": meter.verified_status || "Не проверено",
+            // Жилищные данные
+            "Площадь (м²)": meter.meter_details?.square || "-",
+            "Тип помещения": meter.meter_details?.facility_type_name || "-",
+            "Количество жильцов": meter.meter_details?.resident_count || "-",
+            "Количество комнат": meter.meter_details?.room_count || "-",
+            // Тарифные данные
+            "Тип тарифа": meter.meter_details?.tariff_type_name || "-",
+            "Цена тарифа": meter.meter_details?.tariff_price != null
+                ? `${meter.meter_details.tariff_price} ₽`
+                : '-',
+            // Геоданные
+            "Широта": meter.geodata?.latitude,
+            "Долгота": meter.geodata?.longitude,
         }));
 
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -292,19 +302,36 @@ export const MeterTable = ({
                         <List
                             size="small"
                             dataSource={[
-                                { label: "Площадь", value: record.meter_details?.square || '-' },
+                                { label: "Площадь", value: record.meter_details?.square != null ? `${record.meter_details.square} м²` : '-' },
                                 { label: "Тип помещения", value: record.meter_details?.facility_type_name || '-' },
-                                { label: "Количество жильцов", value: record.meter_details?.residents_count || '-' },
-                                { label: "Количество комнат", value: record.meter_details?.rooms_count || '-' },
+                                { label: "Количество жильцов", value: record.meter_details?.resident_count ?? '-' },
+                                { label: "Количество комнат", value: record.meter_details?.room_count ?? '-' },
+                                {
+                                    label: "Тип тарифа",
+                                    value: record.meter_details?.tariff_type_name || '-'
+                                },
+                                {
+                                    label: "Цена тарифа",
+                                    value: record.meter_details?.tariff_price != null ? `${record.meter_details.tariff_price} ₽` : '-'
+                                },
+                                {
+                                    label: "Тип счетчика",
+                                    value: record.is_iot ? (
+                                        <Tag color="blue" style={{ marginRight: -3 }}>Посуточный</Tag>
+                                    ) : (
+                                        <Tag color="default" style={{ marginRight: -3 }}>Обычный</Tag>
+                                    )
+                                }
                             ]}
                             renderItem={item => (
                                 <List.Item>
                                     <Text strong>{item.label}: </Text>
-                                    <Text>{item.value} {item.label === "Площадь" ? 'м²' : ''}</Text>
+                                    <Text>{item.value}</Text>
                                 </List.Item>
                             )}
                         />
                     </Card>
+
 
                     {/* Контактные данные - правая карточка */}
                     <Card
@@ -367,7 +394,7 @@ export const MeterTable = ({
 
     const handleCreateRoute = () => {
         if (selectedRowKeys.length === 0) {
-            message.warning('Выберите хотя бы одну точку для маршрута');
+            messageApi.warning('Выберите хотя бы одну точку для маршрута');
             return;
         }
         setIsRouteModalVisible(true);
@@ -381,22 +408,64 @@ export const MeterTable = ({
         return filteredData.filter(meter => selectedRowKeys.includes(meter.meter_id));
     };
 
-    const handleCompleteTrip = () => {
+    const handleCompleteTrip = async () => {
         if (!selectedEmployee) {
-            message.warning('Выберите сотрудника для выезда');
+            messageApi.warning('Выберите сотрудника для выезда');
             return;
         }
 
-        const trip: Trip = {
-            employee: selectedEmployee,
-            points: getSelectedMeters()
+        const selectedMeters = getSelectedMeters();
+
+        const startPointMeterId = localStorage.getItem('startPointMeterId');
+
+        // Подготовка данных для API
+        const tripData: TripInput = {
+            employee_id: selectedEmployee.employee_id,
+            from_time: null,
+            to_time: null,
+            points: selectedMeters.map(meter => ({
+                facility_id: meter.facility_id,
+                is_first: startPointMeterId ?
+                    meter.meter_id.toString() === startPointMeterId :
+                    meter.is_first || false
+            }))
         };
 
-        console.log('Сформирован выезд:', trip);
-        message.success(`Выезд успешно сформирован для сотрудника ${selectedEmployee.name}`);
-        setIsRouteModalVisible(false);
-        setSelectedRowKeys([]);
-        setSelectedEmployee(null);
+        try {
+            setLoadingIn(true);
+
+            if (IS_DEBUG_MODE) {
+                console.log('Тестовый режим: отправка выезда', tripData);
+                messageApi.success(`Тестовый режим: выезд сформирован для ${selectedEmployee.name}`);
+            } else {
+                // Запрос к API
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/v1/trips/new`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(tripData)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Не удалось создать выезд');
+                }
+
+                const result = await response.json();
+                console.log('Выезд создан:', result);
+                messageApi.success(`Выезд #${result.trip_id} создан для ${selectedEmployee.name}`);
+            }
+
+            // Закрываем модальное окно и сбрасываем состояние
+            setIsRouteModalVisible(false);
+            setSelectedRowKeys([]);
+            setSelectedEmployee(null);
+        } catch (error: any) {
+            console.error('Ошибка при создании выезда:', error);
+            messageApi.error(error.message || 'Ошибка при создании выезда');
+        } finally {
+            setLoadingIn(false);
+        }
     };
 
     const columns = [
@@ -433,7 +502,7 @@ export const MeterTable = ({
                 <Space>
                     <Button
                         icon={<LineChartOutlined />}
-                        onClick={() => router.push(`/consumptionChart?meterId=${record.meter_id}`)}
+                        onClick={() => router.push(`/consumptionChart?meterId=${record.meter_id}&facilityId=${record.facility_id}`)}
                     >
                         График
                     </Button>
@@ -511,14 +580,16 @@ export const MeterTable = ({
             address: meter.address || 'Адрес не указан',
             accountId: meter.meter_id,
             buildingType: meter.meter_details?.facility_type_name || 'Не указан',
-            roomsCount: meter.meter_details?.rooms_count || 0,
-            residentsCount: meter.meter_details?.residents_count || 0,
-            totalArea: meter.meter_details?.square || 0
+            roomsCount: meter.meter_details?.room_count || 0,
+            residentsCount: meter.meter_details?.resident_count || 0,
+            totalArea: meter.meter_details?.square || 0,
+            meter_id: meter.meter_id
         }));
     };
 
     return (
         <Layout style={{ background: "transparent", padding: 24 }}>
+            {contextHolder}
             <Space direction="vertical" size="middle" style={{ display: 'flex' }}>
                 <Flex justify="space-between" align="center" wrap="wrap" gap="middle">
                     <Flex align="center" gap="middle" wrap>
@@ -664,6 +735,8 @@ export const MeterTable = ({
                                         description={meter.address}
                                     />
                                     <div style={{ marginRight: 16 }}>
+                                        {meter.meter_id.toString() === localStorage.getItem('startPointMeterId')
+                                            && <Tag color="green">Первая точка маршрута</Tag>}
                                         <Tag color="blue">{meter.meter_details?.facility_type_name}</Tag>
                                         {meter.client?.phone && <Tag icon={<PhoneOutlined />}>{meter.client.phone}</Tag>}
                                     </div>
@@ -733,12 +806,6 @@ export const MeterTable = ({
                     </Card>
                 </Space>
             </Modal>
-
-            {/* <ProfileModal
-                open={isProfileModalOpen}
-                onCancel={() => setIsProfileModalOpen(false)}
-                {...selectedProfileData}
-            /> */}
         </Layout>
     );
 };

@@ -23,8 +23,8 @@ const TEST_DATA: Meter[] = [
         meter_details: {
             square: 74,
             facility_type_name: 'Частный дом',
-            resident_count: 3,
-            room_count: 4
+            residents_count: 3,
+            rooms_count: 4
         },
         client: {
             name: 'Фомин Сергей Александрович',
@@ -34,7 +34,6 @@ const TEST_DATA: Meter[] = [
             longitude: 38.9753
         },
         is_first: null,
-        is_iot: false,
         verified_status: null
     },
     {
@@ -46,8 +45,8 @@ const TEST_DATA: Meter[] = [
         meter_details: {
             square: 46,
             facility_type_name: 'Квартира',
-            resident_count: 2,
-            room_count: 2
+            residents_count: 2,
+            rooms_count: 2
         },
         client: {
             name: 'Петров Павел Андреевич',
@@ -56,7 +55,6 @@ const TEST_DATA: Meter[] = [
             latitude: 45.0402,
             longitude: 38.9761
         },
-        is_iot: false,
         is_first: null,
         verified_status: null
     },
@@ -64,13 +62,12 @@ const TEST_DATA: Meter[] = [
         meter_id: 3,
         facility_id: 103,
         rating: 84,
-        is_iot: false,
         address: 'ст. Ново-Титаровская, ул. Ленина, д. 25',
         meter_details: {
             square: 95,
             facility_type_name: 'Частный дом',
-            resident_count: 5,
-            room_count: 5
+            residents_count: 5,
+            rooms_count: 5
         },
         client: {
             name: 'Сидорова Анна Владимировна',
@@ -85,14 +82,14 @@ const TEST_DATA: Meter[] = [
     {
         meter_id: 4,
         facility_id: 104,
-        is_iot: false,
+
         rating: 62,
         address: 'Архипо-Осиповка, ул. Центральная, д. 7',
         meter_details: {
             square: 68,
             facility_type_name: 'Частный дом',
-            resident_count: 4,
-            room_count: 3
+            residents_count: 4,
+            rooms_count: 3
         },
         client: {
             name: 'Ковалев Дмитрий Игоревич',
@@ -106,15 +103,14 @@ const TEST_DATA: Meter[] = [
     },
     {
         meter_id: 5,
-        is_iot: false,
         facility_id: 105,
         rating: 45,
         address: 'Краснодар, ул. Красная, д. 56, кв. 12',
         meter_details: {
             square: 52,
             facility_type_name: 'Квартира',
-            resident_count: 2,
-            room_count: 1
+            residents_count: 2,
+            rooms_count: 1
         },
         client: {
             name: 'Иванова Ольга Петровна',
@@ -128,15 +124,14 @@ const TEST_DATA: Meter[] = [
     },
     {
         meter_id: 6,
-        is_iot: false,
         facility_id: 106,
         rating: 91,
         address: 'ст. Ново-Титаровская, ул. Садовая, д. 18',
         meter_details: {
             square: 110,
             facility_type_name: 'Частный дом',
-            resident_count: 6,
-            room_count: 6
+            residents_count: 6,
+            rooms_count: 6
         },
         client: {
             name: 'Смирнов Алексей Викторович',
@@ -151,15 +146,14 @@ const TEST_DATA: Meter[] = [
     },
     {
         meter_id: 7,
-        is_iot: false,
         facility_id: 107,
         rating: 37,
         address: 'Архипо-Осиповка, ул. Морская, д. 3',
         meter_details: {
             square: 48,
             facility_type_name: 'Квартира',
-            resident_count: 1,
-            room_count: 1
+            residents_count: 1,
+            rooms_count: 1
         },
         client: {
             name: 'Кузнецова Мария Ивановна',
@@ -175,18 +169,16 @@ const TEST_DATA: Meter[] = [
     {
         meter_id: 8,
         facility_id: 108,
-        is_iot: false,
         rating: 73,
         address: 'Краснодар, ул. Гагарина, д. 89, кв. 34',
         meter_details: {
             square: 65,
             facility_type_name: 'Квартира',
-            resident_count: 3,
-            room_count: 2
+            residents_count: 3,
+            rooms_count: 2
         },
         client: {
             name: 'Попов Владимир Сергеевич',
-            phone: 89127382912
         },
         geodata: {
             latitude: 45.0361,
@@ -276,11 +268,8 @@ function MeterListPage() {
         <Layout style={{ padding: 20, background: "transparent" }}>
             <Title level={3} style={{ color: "white", textAlign: "center" }}><b>Список счетчиков</b></Title>
             <br />
-            <MeterTable
-                meters={meters}
-                pagination={pagination}
-                onTableChange={handleTableChange}
-                loading={loading}
+            <TripsTable
+                trips={trips}
             />
         </Layout>
     );

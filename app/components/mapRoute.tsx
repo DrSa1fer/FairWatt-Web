@@ -10,6 +10,7 @@ interface Point {
   roomsCount?: number;
   residentsCount?: number;
   totalArea?: number;
+  meter_id: number
 }
 
 interface MapRouteProps {
@@ -135,6 +136,11 @@ const MapRoute = ({ points }: MapRouteProps) => {
   useEffect(() => {
     const handler = (e: CustomEvent) => {
       setStartPointIndex(e.detail);
+
+      const point = points[e.detail];
+      if (point.meter_id)
+        localStorage.setItem('startPointMeterId', point.meter_id.toString());
+
       setSelectedPoint(null);
     };
     
@@ -306,6 +312,7 @@ const MapRoute = ({ points }: MapRouteProps) => {
                 );
                 if (index >= 0) {
                   setStartPointIndex(index);
+                  localStorage.setItem('startPointMeterId', selectedPoint.meter_id.toString());
                   setSelectedPoint(null);
                 }
               }}
