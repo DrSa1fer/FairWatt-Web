@@ -1,11 +1,37 @@
+"use client";
+
+import {
+    Descriptions,
+    Tag,
+    List,
+    Input,
+    Avatar,
+    Space,
+    Typography,
+    Card,
+    Button,
+    Layout,
+    ConfigProvider,
+    Collapse,
+    theme
+} from "antd";
+import {
+    PhoneOutlined,
+    MailOutlined,
+    HomeOutlined,
+    EditOutlined,
+    SaveOutlined,
+    SearchOutlined,
+    ArrowLeftOutlined,
+    InfoCircleOutlined,
+    UserOutlined,
+    CalculatorOutlined
+} from '@ant-design/icons';
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getMeterById } from "../services/meter";
-import { useMessage } from "../hooks/useMessage";
-import { Button, Layout, Typography, Card, Space, Descriptions, Tag, Avatar, Collapse, List, Input, ConfigProvider } from "antd";
-import { PhoneOutlined, MailOutlined, HomeOutlined, EditOutlined, SaveOutlined, SearchOutlined, ArrowLeftOutlined, InfoCircleOutlined, UserOutlined } from '@ant-design/icons';
 import Link from "next/link";
-import { theme } from "antd";
+import { useMessage } from "../hooks/useMessage";
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
@@ -28,44 +54,47 @@ export default function ProfilePage() {
         fns?: { url: string };
         maps?: Array<{ url: string; name: string; purpose_name: string }>;
     } | null>(null);
-    const [losses, setLosses] = useState<number | null>(null);
+    const [lossesAmount, setLossesAmount] = useState<number | null>(null);
+    const [calculatingLosses, setCalculatingLosses] = useState(false);
 
     useEffect(() => {
         if (meterId) {
-            const loadMeterData = async () => {
+            const loadData = async () => {
                 try {
                     setLoading(true);
 
-                    if (IS_DEBUG_MODE) {
-                        const savedData = localStorage.getItem(`meterProfile_${meterId}`);
-                        if (savedData) {
-                            setMeterData(JSON.parse(savedData));
-                            return;
-                        }
-                        messageApi.warning('Данные не найдены в localStorage. Загружаю пустой профиль.');
-                        setMeterData({
+                    // Сначала загружаем данные
+                    const data = IS_DEBUG_MODE
+                        ? JSON.parse(localStorage.getItem(`meterProfile_${meterId}`) || 'null') || {
                             meter_id: parseInt(meterId),
                             client: {},
                             meter_details: {},
                             address: '',
                             rating: 0,
-                            verified_status: null
-                        } as Meter);
-                    } else {
-                        const data = await getMeterById(meterId);
-                        setMeterData(data);
-                    }
+                            verified_status: null,
+                            geodata: {
+                                latitude: 45.0355,
+                                longitude: 38.9753
+                            }
+                        }
+                        : await getMeterById(meterId);
+
+                    setMeterData(data);
+
+                    // Затем рассчитываем потери
+                    const amount = await calculateLosses(meterId);
+                    setLossesAmount(amount);
                 } catch (error) {
-                    console.error('Error loading meter data:', error);
+                    console.error('Error loading data:', error);
                     messageApi.error('Не удалось загрузить данные профиля');
                 } finally {
                     setLoading(false);
                 }
             };
 
-            loadMeterData();
+            loadData();
         }
-    }, [meterId]);
+    }, [meterId, messageApi]);
 
     const saveNoteToApi = async (meterId: string, noteText: string) => {
         try {
@@ -91,6 +120,32 @@ export default function ProfilePage() {
         } catch (error) {
             console.error('Error saving note:', error);
             throw error;
+        }
+    };
+
+    const calculateLosses = async (meterId: string) => {
+        try {
+            setCalculatingLosses(true);
+
+            if (IS_DEBUG_MODE) {
+                // В режиме отладки возвращаем случайное значение
+                await new Promise(resolve => setTimeout(resolve, 500));
+                return Math.floor(Math.random() * 10000) + 1000;
+            }
+
+            const response = await fetch(`${API_HOST}/api/v1/calculateLosses?meter_id=${meterId}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error calculating losses:', error);
+            throw error;
+        } finally {
+            setCalculatingLosses(false);
         }
     };
 
@@ -216,31 +271,6 @@ export default function ProfilePage() {
         }
     };
 
-    const calculateLosses = async () => {
-        if (!meterId) {
-            messageApi.error('Не указан ID счетчика');
-            return;
-        }
-
-        try {
-            setIsLoading(true);
-            const response = await fetch(`${API_HOST}/api/v1/calculateLosses?meter_id=${meterId}`);
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.text();
-            setLosses(parseFloat(data));
-            messageApi.success(`Потери рассчитаны: ${data} рублей`);
-        } catch (error) {
-            console.error('Error calculating losses:', error);
-            messageApi.error('Ошибка при расчете потерь');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     useEffect(() => {
         if (IS_DEBUG_MODE && meterId) {
             const savedNotes = localStorage.getItem(`meterNotes_${meterId}`);
@@ -269,7 +299,7 @@ export default function ProfilePage() {
         );
     }
 
-    const { client, meter_details, address, is_iot, rating = 0, verified_status } = meterData;
+    const { client, meter_details, address, is_iot, rating = 0, verified_status, geodata } = meterData;
 
     const customTheme = {
         components: {
@@ -332,7 +362,7 @@ export default function ProfilePage() {
                                     {address || 'Не указан адрес'}
                                 </Text>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                 <Tag
                                     color={verified_status ? token.colorSuccess : token.colorWarning}
                                     icon={verified_status ? null : <InfoCircleOutlined />}
@@ -356,12 +386,24 @@ export default function ProfilePage() {
                             </div>
                         </div>
 
+                        <Space style={{ marginTop: 10 }} direction="vertical">
+                            {lossesAmount !== null && (
+                                lossesAmount === 0 ? (
+                                    <Text type="secondary">Нет данных для расчета потерь</Text>
+                                ) : (
+                                    <Text strong style={{ color: token.colorError }}>
+                                        Потенциальные потери: {lossesAmount.toLocaleString('ru-RU')} ₽
+                                    </Text>
+                                )
+                            )}
+                        </Space>
+
                         <div style={{ marginTop: 16, marginBottom: 24 }}>
                             <Text style={{ color: '#000', fontSize: 16 }}>
                                 {(meter_details?.facility_type_name || 'Тип помещения не указан') +
                                     ' · ' + (meter_details?.square != null ? `${meter_details.square} м²` : 'Площадь не указана') +
                                     ' · '}
-                                <span title="Жильцы"><UserOutlined /></span> {meter_details?.resident_count ?? '—'} · {meter_details?.room_count ?? '—'} <img src="/door.svg" alt="Комнаты" title="Комнаты" style={{ width: 16, height: 16, verticalAlign: 'text-bottom' }} />
+                                <span title="Жильцы"><UserOutlined /></span> {meter_details?.resident_count ?? '—'} · Комнат {meter_details?.room_count ?? '—'}
                             </Text>
                         </div>
 
@@ -407,6 +449,29 @@ export default function ProfilePage() {
                             </div>
                         </div>
                     </div>
+
+                    {geodata && (
+                        <Card title="Панорама">
+                            <div style={{ height: '400px', position: 'relative' }}>
+                                <iframe
+                                    src={`https://yandex.ru/map-widget/v1/?ll=${geodata.longitude}%2C${geodata.latitude}&z=17&l=stv%2Csta`}
+                                    width="100%"
+                                    height="100%"
+                                    frameBorder="0"
+                                    allowFullScreen
+                                    style={{ position: 'absolute' }}
+                                ></iframe>
+                            </div>
+                            <div style={{ marginTop: 16 }}>
+                                <Link
+                                    href={`https://yandex.ru/maps/?ll=${geodata.longitude}%2C${geodata.latitude}&z=17&l=stv%2Csta`}
+                                    target="_blank"
+                                >
+                                    Открыть в Яндекс.Картах
+                                </Link>
+                            </div>
+                        </Card>
+                    )}
 
                     <Card
                         title="Внешние данные"
@@ -513,35 +578,6 @@ export default function ProfilePage() {
                             />
                         ) : (
                             <Text>{notes || 'Нет заметки'}</Text>
-                        )}
-                    </Card>
-
-                    <Card
-                        title="Рассчитать потери"
-                        extra={
-                            <Button
-                                type="primary"
-                                onClick={calculateLosses}
-                                loading={isLoading}
-                            >
-                                Рассчитать потери
-                            </Button>
-                        }
-                    >
-                        {losses !== null && (
-                            <Text>Потери компании: {losses} рублей</Text>
-                        )}
-                    </Card>
-
-                    <Card
-                        title="Панорама с Яндекс Карт"
-                    >
-                        {meterData.geodata ? (
-                            <Link href={`https://yandex.ru/maps/?ll=${meterData.geodata.longitude},${meterData.geodata.latitude}&z=17&panorama[point]=${meterData.geodata.longitude},${meterData.geodata.latitude}`} target="_blank">
-                                Открыть панораму на Яндекс Картах
-                            </Link>
-                        ) : (
-                            <Text type="secondary">Нет данных для отображения панорамы</Text>
                         )}
                     </Card>
                 </Space>

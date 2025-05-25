@@ -89,9 +89,9 @@ export default function ConsumptionChartPage() {
                     // Используем тестовые данные в режиме отладки
                     setQuestionableClients(TEST_DATA.questionableClients);
                     setAverageFacilityConsumption(TEST_DATA.averageFacilityConsumption);
-                    setAverageFlatConsumption(TEST_DATA.averageFlatConsumption);
+                    if (facilityId) setAverageFlatConsumption(TEST_DATA.averageFlatConsumption);
                     setMonthlyConsumption(TEST_DATA.averageMonthConsumption);
-                    setClientInfo(TEST_DATA.clientInfo);
+                    if (meterId) setClientInfo(TEST_DATA.clientInfo);
                     setLoading(false);
                     return;
                 }
@@ -275,6 +275,8 @@ export default function ConsumptionChartPage() {
         }
     ];
 
+    const chartTitle = meterId ? "График потребления" : "График потребления (общий)";
+
     return (
         <Layout style={{ padding: 20, background: "transparent" }}>
             {contextHolder}
@@ -363,7 +365,7 @@ export default function ConsumptionChartPage() {
                 </Row>
 
                 <Card
-                    title="Графики потребления"
+                    title={chartTitle}
                     extra={
                         <Space>
                             <Segmented
@@ -390,7 +392,7 @@ export default function ConsumptionChartPage() {
                     {chartType === 'bar' && <BarChart {...configBar} />}
                     {chartType === 'pie' && facilityId && <PieChart {...configPie} />}
                     {chartType === 'pie' && !facilityId && (
-                        <Text type="warning">Для сравнения требуется ID объекта</Text>
+                        <Text type="warning">Для сравнения требуется открыть данные конкретного счетчика</Text>
                     )}
                 </Card>
 
