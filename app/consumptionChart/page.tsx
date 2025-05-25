@@ -276,6 +276,7 @@ export default function ConsumptionChartPage() {
     ];
 
     const chartTitle = meterId ? "График потребления" : "График потребления (общий)";
+    const monthTitle = meterId ? "Данные по месяцам" : "Данные по месяцам (общий)";
 
     return (
         <Layout style={{ padding: 20, background: "transparent" }}>
@@ -397,7 +398,7 @@ export default function ConsumptionChartPage() {
                 </Card>
 
                 <Card
-                    title="Данные по месяцам"
+                    title="{monthTitle}"
                     style={{
                         width: '50%',
                         marginLeft: 'auto',
