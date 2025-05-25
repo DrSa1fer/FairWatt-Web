@@ -51,9 +51,9 @@ const API_HOST = process.env.NEXT_PUBLIC_API_HOST || 'http://10.8.0.99:8000';
 // Тестовые данные (используются только в режиме отладки)
 const TEST_DATA = {
     questionableClients: 8,
-    averageFacilityConsumption: 350.5,
-    averageFlatConsumption: 250.3,
-    averageMonthConsumption: [320, 310, 290, 280, 300, 350, 400, 380, 360, 340, 330, 320],
+    averageFacilityConsumption: 650.5,
+    averageFlatConsumption: 2131.67,
+    averageMonthConsumption: [420, 710, 400, 380, 360, 340, 330, 320, 3390, 3280, 4300, 11350],
     clientInfo: {
         name: 'Кузнецова Мария Ивановна',
         address: 'Архипо-Осиповка, ул. Морская, д. 3',
@@ -398,7 +398,7 @@ export default function ConsumptionChartPage() {
                 </Card>
 
                 <Card
-                    title="{monthTitle}"
+                    title={monthTitle}
                     style={{
                         width: '50%',
                         marginLeft: 'auto',

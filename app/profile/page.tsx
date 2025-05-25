@@ -32,10 +32,17 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getMeterById } from "../services/meter";
 import Link from "next/link";
 import { useMessage } from "../hooks/useMessage";
+// import dynamic from 'next/dynamic';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
 const { useToken } = theme;
+
+// Динамически загружаем компонент карты с отключенным SSR
+// const YandexMap = dynamic(() => import('../components/YandexMap'), {
+//     ssr: false,
+//     loading: () => <div style={{ height: '400px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Загрузка карты...</div>
+// });
 
 export default function ProfilePage() {
     const { token } = useToken();
@@ -299,7 +306,14 @@ export default function ProfilePage() {
         );
     }
 
-    const { client, meter_details, address, is_iot, rating = 0, verified_status, geodata } = meterData;
+    let { client, meter_details, address, is_iot, rating = 0, verified_status, geodata } = meterData;
+
+    if (IS_DEBUG_MODE) {
+        geodata = {
+            latitude: 33.82893,
+            longitude: 38.2312323
+        }
+    }
 
     const customTheme = {
         components: {
@@ -429,7 +443,7 @@ export default function ProfilePage() {
                                         {client?.phone ? (
                                             <Space>
                                                 <PhoneOutlined />
-                                                <Link href={`tel:${client.phone}`}>
+                                                <Link className='tableLink' href={`tel:${client.phone}`}>
                                                     {client.phone}
                                                 </Link>
                                             </Space>
@@ -439,7 +453,7 @@ export default function ProfilePage() {
                                         {client?.email ? (
                                             <Space>
                                                 <MailOutlined />
-                                                <Link href={`mailto:${client.email}`}>
+                                                <Link className='tableLink' href={`mailto:${client.email}`}>
                                                     {client.email}
                                                 </Link>
                                             </Space>
@@ -452,20 +466,11 @@ export default function ProfilePage() {
 
                     {geodata && (
                         <Card title="Панорама">
-                            <div style={{ height: '400px', position: 'relative' }}>
-                                <iframe
-                                    src={`https://yandex.ru/map-widget/v1/?ll=${geodata.longitude}%2C${geodata.latitude}&z=17&l=stv%2Csta`}
-                                    width="100%"
-                                    height="100%"
-                                    frameBorder="0"
-                                    allowFullScreen
-                                    style={{ position: 'absolute' }}
-                                ></iframe>
-                            </div>
-                            <div style={{ marginTop: 16 }}>
+                            <div>
                                 <Link
                                     href={`https://yandex.ru/maps/?ll=${geodata.longitude}%2C${geodata.latitude}&z=17&l=stv%2Csta`}
                                     target="_blank"
+                                    className="tableLink"
                                 >
                                     Открыть в Яндекс.Картах
                                 </Link>
