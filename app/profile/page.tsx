@@ -23,7 +23,8 @@ import {
     SaveOutlined,
     SearchOutlined,
     ArrowLeftOutlined,
-    InfoCircleOutlined
+    InfoCircleOutlined,
+    UserOutlined
 } from '@ant-design/icons';
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -241,13 +242,13 @@ export default function ProfilePage() {
                 padding: 24,
                 minHeight: '100vh'
             }}>
-                <Button
-                    icon={<ArrowLeftOutlined />}
-                    onClick={() => router.back()}
-                    style={{ marginBottom: 24, width: 250 }}
-                >
-                    Назад
-                </Button>
+                {/*<Button*/}
+                {/*    icon={<ArrowLeftOutlined />}*/}
+                {/*    onClick={() => router.back()}*/}
+                {/*    style={{ marginBottom: 24, width: 250 }}*/}
+                {/*>*/}
+                {/*    Назад*/}
+                {/*</Button>*/}
 
                 <Space direction="vertical" size="large" style={{ width: '100%' }}>
                     <div style={{
@@ -256,54 +257,65 @@ export default function ProfilePage() {
                         borderRadius: token.borderRadiusLG,
                         border: `1px solid ${token.colorBorder}`
                     }}>
-                        <Title level={3} style={{ marginBottom: 24 }}>
-                            {client?.name || 'Не указано ФИО клиента'}
-                        </Title>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'start' }}>
+                            <div>
+                                <Title level={2} style={{ margin: 0 }}>
+                                    {client?.name || 'Не указано ФИО клиента'}
+                                </Title>
+                                <Text type="secondary" style={{ fontSize: 16 }}>
+                                    {address || 'Не указан адрес'}
+                                </Text>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                                <Tag
+                                    color={verified_status ? token.colorSuccess : token.colorWarning}
+                                    icon={verified_status ? null : <InfoCircleOutlined />}
+                                    style={{ height: 32, display: 'flex', alignItems: 'center', fontSize: 14 }}
+                                >
+                                    {verified_status || 'Проверок не было'}
+                                </Tag>
+                                <div>
+                                    <Avatar
+                                        style={{
+                                            backgroundColor: getRatingColor(rating),
+                                            fontWeight: 'bold',
+                                            width: 48,
+                                            height: 48,
+                                            fontSize: 18
+                                        }}
+                                    >
+                                        {rating}
+                                    </Avatar>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ marginTop: 16, marginBottom: 24 }}>
+                            <Text style={{ color: '#000', fontSize: 16 }}>
+                                {(meter_details?.facility_type_name || 'Тип помещения не указан') +
+                                    ' · ' + (meter_details?.square != null ? `${meter_details.square} м²` : 'Площадь не указана') +
+                                    ' · '}
+                                <span title="Жильцы"><UserOutlined /></span> {meter_details?.resident_count ?? '—'} · {meter_details?.room_count ?? '—'} <img src="/door.svg" alt="Комнаты" title="Комнаты" style={{ width: 16, height: 16, verticalAlign: 'text-bottom' }} />
+                            </Text>
+                        </div>
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-                            <Card title="Жилищные данные" variant="borderless">
+                            <div style={{ background: 'none', boxShadow: 'none', border: 'none', padding: 0 }}>
                                 <Descriptions column={1}>
-                                    <Descriptions.Item label={<Text strong>Адрес</Text>}>
-                                        <Space>
-                                            <HomeOutlined />
-                                            {address || 'Не указан'}
-                                        </Space>
-                                    </Descriptions.Item>
-
-                                    <Descriptions.Item label={<Text strong>Тип помещения</Text>}>
-                                        {meter_details?.facility_type_name || 'Не указан'}
-                                    </Descriptions.Item>
-
-                                    <Descriptions.Item label={<Text strong>Площадь</Text>}>
-                                        {meter_details?.square != null ? `${meter_details.square} м²` : 'Не указана'}
-                                    </Descriptions.Item>
-
-                                    <Descriptions.Item label={<Text strong>Жильцы</Text>}>
-                                        {meter_details?.resident_count ?? 'Не указано'}
-                                    </Descriptions.Item>
-
-                                    <Descriptions.Item label={<Text strong>Комнаты</Text>}>
-                                        {meter_details?.room_count ?? 'Не указано'}
-                                    </Descriptions.Item>
-
                                     <Descriptions.Item label={<Text strong>Тип тарифа</Text>}>
                                         {meter_details?.tariff_type_name || 'Не указан'}
                                     </Descriptions.Item>
-
                                     <Descriptions.Item label={<Text strong>Цена тарифа</Text>}>
                                         {meter_details?.tariff_price != null ? `${meter_details.tariff_price} ₽` : 'Не указана'}
                                     </Descriptions.Item>
-
                                     <Descriptions.Item label={<Text strong>Тип счетчика</Text>}>
                                         {is_iot
                                             ? <Tag color="blue">IoT</Tag>
                                             : <Tag color="default">Обычный</Tag>}
                                     </Descriptions.Item>
                                 </Descriptions>
-                            </Card>
-
-
-                            <Card title="Контактные данные" variant='borderless'>
+                            </div>
+                            <div style={{ background: 'none', boxShadow: 'none', border: 'none', padding: 0 }}>
                                 <Descriptions column={1}>
                                     <Descriptions.Item label={<Text strong>Телефон</Text>}>
                                         {client?.phone ? (
@@ -326,43 +338,10 @@ export default function ProfilePage() {
                                         ) : 'Не указан'}
                                     </Descriptions.Item>
                                 </Descriptions>
-                            </Card>
+                            </div>
                         </div>
 
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: '1fr 1fr',
-                            gap: 24,
-                            marginTop: 24
-                        }}>
-                            <Card title="Статус" variant='borderless'>
-                                <Space size="middle">
-                                    <Tag
-                                        color={verified_status ? token.colorSuccess : token.colorWarning}
-                                        icon={verified_status ? null : <InfoCircleOutlined />}
-                                    >
-                                        {verified_status || 'Проверок не было'}
-                                    </Tag>
-                                </Space>
-                            </Card>
-
-                            <Card title="Рейтинг" variant='borderless'>
-                                <Space size="middle">
-                                    <Avatar
-                                        style={{
-                                            backgroundColor: getRatingColor(rating),
-                                            fontWeight: 'bold',
-                                            width: 40,
-                                            height: 40,
-                                            fontSize: 16
-                                        }}
-                                    >
-                                        {rating}
-                                    </Avatar>
-                                    {/* <Text strong>Рейтинг: {rating}%</Text> */}
-                                </Space>
-                            </Card>
-                        </div>
+                        {/* Статус-блок удалён */}
                     </div>
 
                     <Card
