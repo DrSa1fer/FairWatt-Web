@@ -11,7 +11,7 @@ interface Meter {
     geodata: Geodata | null;
     verified_status: string | null; // Статус проверки (если проверка была)
     is_first: boolean | null; // Первая ли точка в маршруте
-    note?: string | null; // Заметка
+    notes?: string | null; // Заметка
 }
 
 interface MeterDetail {

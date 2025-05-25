@@ -209,6 +209,7 @@ function MeterListPage() {
 
     const fetchMeters = async (page = 1, perPage = 10) => {
         if (IS_DEBUG_MODE) {
+            console.log(`emulate: ` + `${API_HOST}/api/v1/meters?page=${page}&per_page=${perPage}`);
             setMeters(TEST_DATA);
             setPagination(prev => ({
                 ...prev,

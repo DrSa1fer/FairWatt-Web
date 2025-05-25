@@ -1,36 +1,11 @@
-"use client";
-
-import {
-    Descriptions,
-    Tag,
-    List,
-    Input,
-    Avatar,
-    Space,
-    Typography,
-    Card,
-    Button,
-    Layout,
-    ConfigProvider,
-    Collapse,
-    theme
-} from "antd";
-import {
-    PhoneOutlined,
-    MailOutlined,
-    HomeOutlined,
-    EditOutlined,
-    SaveOutlined,
-    SearchOutlined,
-    ArrowLeftOutlined,
-    InfoCircleOutlined,
-    UserOutlined
-} from '@ant-design/icons';
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getMeterById } from "../services/meter";
-import Link from "next/link";
 import { useMessage } from "../hooks/useMessage";
+import { Button, Layout, Typography, Card, Space, Descriptions, Tag, Avatar, Collapse, List, Input, ConfigProvider } from "antd";
+import { PhoneOutlined, MailOutlined, HomeOutlined, EditOutlined, SaveOutlined, SearchOutlined, ArrowLeftOutlined, InfoCircleOutlined, UserOutlined } from '@ant-design/icons';
+import Link from "next/link";
+import { theme } from "antd";
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
@@ -45,14 +20,15 @@ export default function ProfilePage() {
 
     const [meterData, setMeterData] = useState<Meter | null>(null);
     const [loading, setLoading] = useState(true);
-    const [note, setNote] = useState<string>("");
-    const [isEditingNote, setIsEditingNote] = useState<boolean>(false);
+    const [notes, setNotes] = useState<string>("");
+    const [isEditingNotes, setIsEditingNotes] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [externalData, setExternalData] = useState<{
         avito?: Array<{ url: string; link: string; description: string }>;
         fns?: { url: string };
         maps?: Array<{ url: string; name: string; purpose_name: string }>;
     } | null>(null);
+    const [losses, setLosses] = useState<number | null>(null);
 
     useEffect(() => {
         if (meterId) {
@@ -61,7 +37,6 @@ export default function ProfilePage() {
                     setLoading(true);
 
                     if (IS_DEBUG_MODE) {
-                        // В режиме отладки загружаем из localStorage
                         const savedData = localStorage.getItem(`meterProfile_${meterId}`);
                         if (savedData) {
                             setMeterData(JSON.parse(savedData));
@@ -77,7 +52,6 @@ export default function ProfilePage() {
                             verified_status: null
                         } as Meter);
                     } else {
-                        // В обычном режиме загружаем с сервера
                         const data = await getMeterById(meterId);
                         setMeterData(data);
                     }
@@ -93,6 +67,33 @@ export default function ProfilePage() {
         }
     }, [meterId]);
 
+    const saveNoteToApi = async (meterId: string, noteText: string) => {
+        try {
+            const response = await fetch(
+                `${API_HOST}/api/v1/meters/note?meter_id=${meterId}&notes=${encodeURIComponent(noteText)}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                if (response.status === 422) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail?.[0]?.msg || 'Некорректные данные');
+                }
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error saving note:', error);
+            throw error;
+        }
+    };
+
     const getRatingColor = (rating: number | null) => {
         if (!rating) return '#ffffff';
         if (rating < 20) return '#ff4d4f';
@@ -105,8 +106,11 @@ export default function ProfilePage() {
     const handleCollectData = async () => {
         setIsLoading(true);
         try {
+            if (!meterId || !meterData) {
+                throw new Error('Данные счетчика не загружены');
+            }
+
             if (IS_DEBUG_MODE) {
-                // В режиме отладки используем mock данные
                 await new Promise(resolve => setTimeout(resolve, 500));
 
                 setExternalData({
@@ -115,11 +119,6 @@ export default function ProfilePage() {
                             url: 'https://avito.ru/item1',
                             link: 'Объявление 1',
                             description: '2-комнатная квартира'
-                        },
-                        {
-                            url: 'https://avito.ru/item2',
-                            link: 'Объявление 2',
-                            description: 'Сдается гараж'
                         }
                     ],
                     fns: {
@@ -133,17 +132,51 @@ export default function ProfilePage() {
                         }
                     ]
                 });
-            } else {
-                // В обычном режиме делаем реальный запрос к API
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_HOST}/api/v1/external-data/${meterId}`);
-                if (!response.ok) {
-                    throw new Error('Failed to fetch external data');
-                }
-                const data = await response.json();
-                setExternalData(data);
+                messageApi.success('Тестовые данные успешно собраны');
+                return;
             }
 
+            const [mapsResponse, fnsResponse, avitoResponse] = await Promise.all([
+                fetch(`${API_HOST}/api/v1/dataCollect/2gis?address=${encodeURIComponent(meterData.address || '')}`)
+                    .then(res => res.ok ? res.json() : null)
+                    .catch(() => null),
+
+                fetch(`${API_HOST}/api/v1/dataCollect/legal?full_name=${encodeURIComponent(meterData.client?.name || '')}`)
+                    .then(res => res.ok ? res.json() : null)
+                    .catch(() => null),
+
+                fetch(`${API_HOST}/api/v1/dataCollect/avito?address=${encodeURIComponent(meterData.address || '')}`)
+                    .then(res => res.ok ? res.json() : null)
+                    .catch(() => null)
+            ]);
+
+            const result: typeof externalData = {};
+
+            if (mapsResponse?.branches?.length) {
+                result.maps = mapsResponse.branches.map((branch: any) => ({
+                    url: mapsResponse.url,
+                    name: branch.name,
+                    purpose_name: branch.purpose_name
+                }));
+            }
+
+            if (fnsResponse?.url) {
+                result.fns = {
+                    url: fnsResponse.url
+                };
+            }
+
+            if (avitoResponse?.length) {
+                result.avito = avitoResponse.map((item: any) => ({
+                    url: item.url,
+                    link: item.title,
+                    description: item.description
+                }));
+            }
+
+            setExternalData(result);
             messageApi.success('Данные успешно собраны');
+
         } catch (error) {
             console.error('Error collecting external data:', error);
             messageApi.error('Ошибка при сборе данных');
@@ -152,26 +185,67 @@ export default function ProfilePage() {
         }
     };
 
-    const handleSaveNote = () => {
-        setIsEditingNote(false);
-        if (IS_DEBUG_MODE) {
-            // В режиме отладки сохраняем заметку в localStorage
-            if (meterId) {
-                localStorage.setItem(`meterNote_${meterId}`, note);
-            }
-        } else {
-            // В обычном режиме отправляем на сервер
-            // Здесь должна быть реализация сохранения на сервере
+    const handleSaveNote = async () => {
+        if (!meterId) {
+            messageApi.error('Не указан ID счетчика');
+            return;
         }
-        messageApi.success('Заметка сохранена');
+
+        if (!notes.trim()) {
+            messageApi.warning('Заметка не может быть пустой');
+            return;
+        }
+
+        try {
+            setIsLoading(true);
+
+            if (IS_DEBUG_MODE) {
+                localStorage.setItem(`meterNote_${meterId}`, notes);
+                messageApi.success('Заметка сохранена (тестовый режим)');
+            } else {
+                await saveNoteToApi(meterId, notes);
+                messageApi.success('Заметка успешно сохранена');
+            }
+
+            setIsEditingNotes(false);
+        } catch (error: any) {
+            console.error('Error saving note:', error);
+            messageApi.error(error.message || 'Ошибка при сохранении заметки');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const calculateLosses = async () => {
+        if (!meterId) {
+            messageApi.error('Не указан ID счетчика');
+            return;
+        }
+
+        try {
+            setIsLoading(true);
+            const response = await fetch(`${API_HOST}/api/v1/calculateLosses?meter_id=${meterId}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.text();
+            setLosses(parseFloat(data));
+            messageApi.success(`Потери рассчитаны: ${data} рублей`);
+        } catch (error) {
+            console.error('Error calculating losses:', error);
+            messageApi.error('Ошибка при расчете потерь');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     useEffect(() => {
         if (IS_DEBUG_MODE && meterId) {
-            // В режиме отладки загружаем заметку из localStorage
-            const savedNote = localStorage.getItem(`meterNote_${meterId}`);
-            if (savedNote) {
-                setNote(savedNote);
+            const savedNotes = localStorage.getItem(`meterNotes_${meterId}`);
+            if (savedNotes) {
+                setNotes(savedNotes);
             }
         }
     }, [meterId]);
@@ -242,14 +316,6 @@ export default function ProfilePage() {
                 padding: 24,
                 minHeight: '100vh'
             }}>
-                {/*<Button*/}
-                {/*    icon={<ArrowLeftOutlined />}*/}
-                {/*    onClick={() => router.back()}*/}
-                {/*    style={{ marginBottom: 24, width: 250 }}*/}
-                {/*>*/}
-                {/*    Назад*/}
-                {/*</Button>*/}
-
                 <Space direction="vertical" size="large" style={{ width: '100%' }}>
                     <div style={{
                         background: token.colorBgContainer,
@@ -340,8 +406,6 @@ export default function ProfilePage() {
                                 </Descriptions>
                             </div>
                         </div>
-
-                        {/* Статус-блок удалён */}
                     </div>
 
                     <Card
@@ -421,33 +485,63 @@ export default function ProfilePage() {
                     <Card
                         title="Заметка"
                         extra={
-                            isEditingNote ? (
+                            isEditingNotes ? (
                                 <Button
                                     type="primary"
                                     icon={<SaveOutlined />}
                                     onClick={handleSaveNote}
+                                    loading={isLoading}
                                 >
                                     Сохранить
                                 </Button>
                             ) : (
                                 <Button
                                     icon={<EditOutlined />}
-                                    onClick={() => setIsEditingNote(true)}
+                                    onClick={() => setIsEditingNotes(true)}
                                 >
                                     Редактировать
                                 </Button>
                             )
                         }
                     >
-                        {isEditingNote ? (
+                        {isEditingNotes ? (
                             <TextArea
-                                value={note}
-                                onChange={(e) => setNote(e.target.value)}
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
                                 autoSize={{ minRows: 3, maxRows: 6 }}
                                 style={{ marginBottom: 16 }}
                             />
                         ) : (
-                            <Text>{note || 'Нет заметки'}</Text>
+                            <Text>{notes || 'Нет заметки'}</Text>
+                        )}
+                    </Card>
+
+                    <Card
+                        title="Рассчитать потери"
+                        extra={
+                            <Button
+                                type="primary"
+                                onClick={calculateLosses}
+                                loading={isLoading}
+                            >
+                                Рассчитать потери
+                            </Button>
+                        }
+                    >
+                        {losses !== null && (
+                            <Text>Потери компании: {losses} рублей</Text>
+                        )}
+                    </Card>
+
+                    <Card
+                        title="Панорама с Яндекс Карт"
+                    >
+                        {meterData.geodata ? (
+                            <Link href={`https://yandex.ru/maps/?ll=${meterData.geodata.longitude},${meterData.geodata.latitude}&z=17&panorama[point]=${meterData.geodata.longitude},${meterData.geodata.latitude}`} target="_blank">
+                                Открыть панораму на Яндекс Картах
+                            </Link>
+                        ) : (
+                            <Text type="secondary">Нет данных для отображения панорамы</Text>
                         )}
                     </Card>
                 </Space>
